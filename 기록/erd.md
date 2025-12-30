@@ -646,20 +646,129 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 -- =========================
 
 -- USERS
+-- ============================================================
+-- MingleRoom PostgreSQL DDL (Clean, with constraints & triggers)
+-- - Nickname duplicate allowed: users.username is NOT unique
+-- - Email unique: case-insensitive via CITEXT (recommended)
+-- - updated_at auto update triggers
+-- - password_updated_at auto update trigger
+-- - integrity CHECK constraints for rooms / invites / votes
+-- ============================================================
+
+-- (선택) DB timezone
+-- ALTER DATABASE yourdb SET timezone TO 'Asia/Seoul';
+
+-- 0) Extensions
+CREATE EXTENSION IF NOT EXISTS citext;
+-- (선택) 토큰/UUID 생성에 쓸 거면
+-- CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- ============================================================
+-- 1) ENUM TYPES
+-- ============================================================
+DO $$ BEGIN
+  CREATE TYPE role_global_t AS ENUM ('USER','ADMIN');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE workspace_role_t AS ENUM ('OWNER','MEMBER');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE room_visibility_t AS ENUM ('PUBLIC','PRIVATE','TEAM');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE invite_policy_t AS ENUM ('LINK','EMAIL','PASSWORD','MIXED');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE room_role_t AS ENUM ('HOST','PRESENTER','MEMBER');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE invite_type_t AS ENUM ('LINK','EMAIL');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE message_type_t AS ENUM ('TEXT','FILE','IMAGE','BOARD_SNAPSHOT');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE room_event_type_t AS ENUM ('JOIN','LEAVE','MUTE','KICK','ROLE_CHANGE','HAND_UP','REACTION','NOTICE_PIN','NOTICE_UNPIN');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE action_status_t AS ENUM ('TODO','DOING','DONE');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE storage_provider_t AS ENUM ('S3','GCS','LOCAL');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE report_target_type_t AS ENUM ('USER','ROOM','MESSAGE');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE report_status_t AS ENUM ('OPEN','IN_REVIEW','RESOLVED','REJECTED');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ============================================================
+-- 2) TRIGGERS FUNCTIONS
+-- ============================================================
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION set_password_updated_at()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW.password_hash IS DISTINCT FROM OLD.password_hash THEN
+    NEW.password_updated_at = now();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================
+-- 3) TABLES
+-- ============================================================
+
+-- USERS (email: CITEXT for case-insensitive unique)
 CREATE TABLE IF NOT EXISTS users (
-  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  email         VARCHAR(255) NOT NULL UNIQUE,
-  username      VARCHAR(50)  NOT NULL,
-  profile_img   VARCHAR(1024),
+  id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  email               CITEXT NOT NULL UNIQUE,
+  username            VARCHAR(50) NOT NULL,      -- nickname (duplicate allowed)
+  profile_img         VARCHAR(1024),
 
-  role_global   role_global_t NOT NULL DEFAULT 'USER',
-  is_banned     BOOLEAN       NOT NULL DEFAULT FALSE,
+  password_hash       TEXT NOT NULL,             -- store hash only (bcrypt/argon2)
+  role_global         role_global_t NOT NULL DEFAULT 'USER',
+  is_banned           BOOLEAN NOT NULL DEFAULT FALSE,
 
-  created_at    TIMESTAMPTZ   NOT NULL DEFAULT now(),
-  updated_at    TIMESTAMPTZ   NOT NULL DEFAULT now(),
-  last_login_at TIMESTAMPTZ
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  password_updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_login_at       TIMESTAMPTZ
 );
+
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+
+DO $$ BEGIN
+  CREATE TRIGGER trg_users_updated_at
+  BEFORE UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TRIGGER trg_users_password_updated_at
+  BEFORE UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION set_password_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- WORKSPACES
 CREATE TABLE IF NOT EXISTS workspaces (
@@ -670,38 +779,63 @@ CREATE TABLE IF NOT EXISTS workspaces (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
 CREATE INDEX IF NOT EXISTS idx_workspaces_owner ON workspaces(owner_id);
+
+DO $$ BEGIN
+  CREATE TRIGGER trg_workspaces_updated_at
+  BEFORE UPDATE ON workspaces
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- WORKSPACE_MEMBERS
 CREATE TABLE IF NOT EXISTS workspace_members (
   workspace_id      BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-  user_id           BIGINT NOT NULL REFERENCES users(id)      ON DELETE RESTRICT,
+  user_id           BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
   role_in_workspace workspace_role_t NOT NULL DEFAULT 'MEMBER',
   joined_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
 
   PRIMARY KEY (workspace_id, user_id)
 );
+
 CREATE INDEX IF NOT EXISTS idx_ws_members_user ON workspace_members(user_id);
 
 -- ROOMS
 CREATE TABLE IF NOT EXISTS rooms (
-  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  workspace_id  BIGINT REFERENCES workspaces(id) ON DELETE SET NULL,
-  host_id       BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  workspace_id        BIGINT REFERENCES workspaces(id) ON DELETE SET NULL,
+  host_id             BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
 
-  title         VARCHAR(150) NOT NULL,
-  visibility    room_visibility_t NOT NULL DEFAULT 'PRIVATE',
-  password_hash VARCHAR(255),
-  invite_policy invite_policy_t NOT NULL DEFAULT 'LINK',
-  is_locked     BOOLEAN NOT NULL DEFAULT FALSE,
+  title               VARCHAR(150) NOT NULL,
+  visibility          room_visibility_t NOT NULL DEFAULT 'PRIVATE',
 
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  ended_at      TIMESTAMPTZ
+  -- 룸 비밀번호(입장 정책이 PASSWORD/MIXED일 때 사용)
+  room_password_hash  VARCHAR(255),
+
+  invite_policy       invite_policy_t NOT NULL DEFAULT 'LINK',
+  is_locked           BOOLEAN NOT NULL DEFAULT FALSE,
+
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ended_at            TIMESTAMPTZ,
+
+  -- 무결성 체크
+  CONSTRAINT ck_rooms_team_requires_workspace
+    CHECK (visibility <> 'TEAM' OR workspace_id IS NOT NULL),
+
+  CONSTRAINT ck_rooms_password_policy_requires_hash
+    CHECK (invite_policy <> 'PASSWORD' OR room_password_hash IS NOT NULL)
 );
+
 CREATE INDEX IF NOT EXISTS idx_rooms_workspace ON rooms(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_rooms_host      ON rooms(host_id);
 CREATE INDEX IF NOT EXISTS idx_rooms_created   ON rooms(created_at);
+
+DO $$ BEGIN
+  CREATE TRIGGER trg_rooms_updated_at
+  BEFORE UPDATE ON rooms
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ROOM_MEMBERS
 CREATE TABLE IF NOT EXISTS room_members (
@@ -718,6 +852,7 @@ CREATE TABLE IF NOT EXISTS room_members (
 
   PRIMARY KEY (room_id, user_id)
 );
+
 CREATE INDEX IF NOT EXISTS idx_room_members_user      ON room_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_room_members_last_seen ON room_members(room_id, last_seen_at);
 
@@ -738,8 +873,17 @@ CREATE TABLE IF NOT EXISTS room_invites (
   default_role_in_room room_role_t NOT NULL DEFAULT 'MEMBER',
   is_revoked           BOOLEAN NOT NULL DEFAULT FALSE,
 
-  created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- 무결성 체크: 이메일 초대면 이메일 필수 / 링크면 NULL 권장
+  CONSTRAINT ck_room_invites_email_requires_invite_email
+    CHECK (
+      (invite_type = 'EMAIL' AND invite_email IS NOT NULL)
+      OR
+      (invite_type = 'LINK' AND invite_email IS NULL)
+    )
 );
+
 CREATE INDEX IF NOT EXISTS idx_room_invites_room    ON room_invites(room_id);
 CREATE INDEX IF NOT EXISTS idx_room_invites_expires ON room_invites(expires_at);
 
@@ -758,6 +902,7 @@ CREATE TABLE IF NOT EXISTS attachments (
 
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
 CREATE INDEX IF NOT EXISTS idx_attachments_uploader ON attachments(uploader_id);
 CREATE INDEX IF NOT EXISTS idx_attachments_created  ON attachments(created_at);
 
@@ -771,7 +916,6 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   content       TEXT,
 
   attachment_id BIGINT REFERENCES attachments(id) ON DELETE SET NULL,
-
   parent_id     BIGINT REFERENCES chat_messages(id) ON DELETE SET NULL,
 
   is_pinned     BOOLEAN NOT NULL DEFAULT FALSE,
@@ -780,6 +924,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   edited_at     TIMESTAMPTZ,
   deleted_at    TIMESTAMPTZ
 );
+
 CREATE INDEX IF NOT EXISTS idx_chat_room_time   ON chat_messages(room_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_chat_room_parent ON chat_messages(room_id, parent_id);
 CREATE INDEX IF NOT EXISTS idx_chat_user_time   ON chat_messages(user_id, created_at);
@@ -795,6 +940,7 @@ CREATE TABLE IF NOT EXISTS room_events (
 
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
 CREATE INDEX IF NOT EXISTS idx_room_events_room_time ON room_events(room_id, created_at);
 
 -- NOTES (room 1:1)
@@ -822,9 +968,16 @@ CREATE TABLE IF NOT EXISTS action_items (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   done_at     TIMESTAMPTZ
 );
+
 CREATE INDEX IF NOT EXISTS idx_action_room_status ON action_items(room_id, status);
 CREATE INDEX IF NOT EXISTS idx_action_assignee    ON action_items(assignee_id);
 CREATE INDEX IF NOT EXISTS idx_action_due         ON action_items(due_date);
+
+DO $$ BEGIN
+  CREATE TRIGGER trg_action_items_updated_at
+  BEFORE UPDATE ON action_items
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- BOOKMARKS
 CREATE TABLE IF NOT EXISTS bookmarks (
@@ -837,6 +990,7 @@ CREATE TABLE IF NOT EXISTS bookmarks (
 
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
 CREATE INDEX IF NOT EXISTS idx_bookmarks_room_time ON bookmarks(room_id, created_at);
 
 -- WHITEBOARD_DOCS
@@ -850,7 +1004,14 @@ CREATE TABLE IF NOT EXISTS whiteboard_docs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
 CREATE INDEX IF NOT EXISTS idx_wbd_room_sort ON whiteboard_docs(room_id, sort_order);
+
+DO $$ BEGIN
+  CREATE TRIGGER trg_whiteboard_docs_updated_at
+  BEFORE UPDATE ON whiteboard_docs
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- WHITEBOARD_PAGES
 CREATE TABLE IF NOT EXISTS whiteboard_pages (
@@ -864,6 +1025,7 @@ CREATE TABLE IF NOT EXISTS whiteboard_pages (
 
   UNIQUE (doc_id, page_no)
 );
+
 CREATE INDEX IF NOT EXISTS idx_wbp_doc ON whiteboard_pages(doc_id);
 
 -- WHITEBOARD_SNAPSHOTS
@@ -879,9 +1041,10 @@ CREATE TABLE IF NOT EXISTS whiteboard_snapshots (
 
   UNIQUE (page_id, version)
 );
+
 CREATE INDEX IF NOT EXISTS idx_wbs_page_time ON whiteboard_snapshots(page_id, created_at);
 
--- WHITEBOARD_UPDATES (CRDT)
+-- WHITEBOARD_UPDATES
 CREATE TABLE IF NOT EXISTS whiteboard_updates (
   id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   page_id    BIGINT NOT NULL REFERENCES whiteboard_pages(id) ON DELETE CASCADE,
@@ -894,6 +1057,7 @@ CREATE TABLE IF NOT EXISTS whiteboard_updates (
 
   UNIQUE (page_id, seq)
 );
+
 CREATE INDEX IF NOT EXISTS idx_wbu_page_time ON whiteboard_updates(page_id, created_at);
 
 -- POLLS
@@ -908,6 +1072,7 @@ CREATE TABLE IF NOT EXISTS polls (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   closed_at    TIMESTAMPTZ
 );
+
 CREATE INDEX IF NOT EXISTS idx_polls_room_time ON polls(room_id, created_at);
 
 -- POLL_OPTIONS
@@ -920,12 +1085,10 @@ CREATE TABLE IF NOT EXISTS poll_options (
 
   UNIQUE (poll_id, sort_order)
 );
+
 CREATE INDEX IF NOT EXISTS idx_poll_options_poll ON poll_options(poll_id);
 
 -- POLL_VOTES
--- 익명/비익명 모두 지원:
--- - 로그인 유저면 voter_id 사용
--- - 익명이면 voter_session_key 사용
 CREATE TABLE IF NOT EXISTS poll_votes (
   id                BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   poll_id           BIGINT NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
@@ -950,9 +1113,10 @@ CREATE TABLE IF NOT EXISTS poll_votes (
       (voter_id IS NULL AND voter_session_key IS NOT NULL)
     )
 );
--- poll_id 내에서 "1인 1표" 강제
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_poll_votes_one_per_voter
   ON poll_votes(poll_id, voter_key);
+
 CREATE INDEX IF NOT EXISTS idx_poll_votes_option ON poll_votes(option_id);
 
 -- AUDIT_LOGS
@@ -970,11 +1134,12 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
 CREATE INDEX IF NOT EXISTS idx_audit_workspace_time ON audit_logs(workspace_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_audit_room_time      ON audit_logs(room_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_audit_actor_time     ON audit_logs(actor_id, created_at);
 
--- REPORTS (폴리모픽 타겟)
+-- REPORTS
 CREATE TABLE IF NOT EXISTS reports (
   id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   reporter_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
@@ -989,48 +1154,7 @@ CREATE TABLE IF NOT EXISTS reports (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   resolved_at TIMESTAMPTZ
 );
+
 CREATE INDEX IF NOT EXISTS idx_reports_status_time ON reports(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_reports_target      ON reports(target_type, target_id);
-
--- =========================
--- 2) (선택) updated_at 자동 갱신 트리거
--- PostgreSQL은 "ON UPDATE CURRENT_TIMESTAMP"가 없어서 트리거로 처리하는 게 일반적
--- =========================
-CREATE OR REPLACE FUNCTION set_updated_at()
-RETURNS trigger AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_users_updated_at
-  BEFORE UPDATE ON users
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_workspaces_updated_at
-  BEFORE UPDATE ON workspaces
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_rooms_updated_at
-  BEFORE UPDATE ON rooms
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_action_items_updated_at
-  BEFORE UPDATE ON action_items
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_whiteboard_docs_updated_at
-  BEFORE UPDATE ON whiteboard_docs
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 ```
