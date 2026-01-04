@@ -3,7 +3,7 @@ import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
 type ChatMessage = {
-  type: 'ENTER' | 'TALK' | 'LEAVE';
+  type: 'SYSTEM' | 'TEXT';
   roomId: string;
   sender: string;
   message: string;
@@ -55,7 +55,7 @@ export default function App() {
         client.publish({
           destination: `/pub/chat/room/${roomId}`,
           body: JSON.stringify({
-            type: 'ENTER',
+            type: 'SYSTEM',
             roomId,
             sender,
             message: `${sender} joined`,
@@ -101,7 +101,7 @@ export default function App() {
     c.publish({
       destination: `/pub/chat/room/${roomId}`,
       body: JSON.stringify({
-        type: 'TALK',
+        type: 'TEXT',
         roomId,
         sender,
         message: text.trim(),

@@ -578,7 +578,7 @@ CRDT 업데이트 로그(Yjs update 저장)
 
 ---
 
-테이블 생성 쿼리문
+# 테이블 생성 쿼리문
 
 ```sql
 -- =========================
@@ -691,7 +691,7 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
-  CREATE TYPE message_type_t AS ENUM ('TEXT','FILE','IMAGE','BOARD_SNAPSHOT');
+  CREATE TYPE message_type_t AS ENUM ('TEXT','FILE','IMAGE','BOARD_SNAPSHOT', 'SYSTEM');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
@@ -1171,3 +1171,85 @@ CREATE TABLE IF NOT EXISTS reports (
 CREATE INDEX IF NOT EXISTS idx_reports_status_time ON reports(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_reports_target      ON reports(target_type, target_id);
 ```
+
+좋아 👍 그럼 이제 “스키마가 정상인지”랑 “바로 개발에 들어가기 위한 최소 세팅”만 딱 체크하면 돼.
+
+## 1) 생성 확인용 쿼리
+
+```sql
+-- 테이블 목록
+SELECT tablename
+FROM pg_tables
+WHERE schemaname = 'public'
+ORDER BY tablename;
+
+-- ENUM 타입 목록
+SELECT t.typname AS enum_name, e.enumlabel AS enum_value
+FROM pg_type t
+JOIN pg_enum e ON t.oid = e.enumtypid
+ORDER BY t.typname, e.enumsortorder;
+```
+
+## 2) FK/제약 확인
+
+```sql
+SELECT
+  conname,
+  conrelid::regclass AS table_name,
+  pg_get_constraintdef(oid) AS definition
+FROM pg_constraint
+WHERE contype IN ('f','p','u','c')
+ORDER BY table_name::text, conname;
+```
+
+## 3) 개발 시작 전에 추천하는 “초기 데이터” 3개
+
+### (1) 관리자 계정 1명
+
+```sql
+INSERT INTO users (email, username, password_hash,role_global)
+VALUES ('admin1@mingle.local', 'admin', '$2a$12$ewXJibmAol4uyiTOG/WAZeriqpyeYCXtZw6rKDCTQMQvBgLE8hdT6','ADMIN');
+```
+
+### (2) 테스트 워크스페이스 1개
+
+```sql
+INSERT INTO workspaces (name, owner_id)
+VALUES ('Demo Workspace', (SELECT id FROM users WHERE email='admin@mingle.local'));
+```
+
+### (3) 테스트 룸 1개 + 멤버 등록
+
+```sql
+INSERT INTO rooms (workspace_id, host_id, title, visibility, invite_policy)
+VALUES (
+  (SELECT id FROM workspaces WHERE name='Demo Workspace'),
+  (SELECT id FROM users WHERE email='admin@mingle.local'),
+  'Demo Room',
+  'TEAM',
+  'LINK'
+);
+
+INSERT INTO room_members (room_id, user_id, role_in_room)
+VALUES (
+  (SELECT id FROM rooms WHERE title='Demo Room' ORDER BY id DESC LIMIT 1),
+  (SELECT id FROM users WHERE email='admin@mingle.local'),
+  'HOST'
+);
+```
+
+## 4) 다음으로 뭐부터 할까?
+
+보통 흐름이 이렇게 좋아:
+
+1. **Auth(JWT) + users CRUD**
+2. **rooms / room_members REST**
+3. **WebSocket: room_events + chat_messages**
+4. **WebRTC 시그널링 테이블/메시지 스펙 확정**
+
+원하는 다음 작업이 뭐야?
+
+- A) Spring Boot JPA 엔티티 설계(연관관계 포함)
+- B) REST API 표(엔드포인트/req/res/권한)
+- C) WebSocket 토픽 + 메시지 DTO 스펙(STOMP)
+- D) 시드 데이터/더미데이터 생성 SQL
