@@ -1238,18 +1238,4 @@ VALUES (
 );
 ```
 
-## 4) 다음으로 뭐부터 할까?
 
-보통 흐름이 이렇게 좋아:
-
-1. **Auth(JWT) + users CRUD**
-2. **rooms / room_members REST**
-3. **WebSocket: room_events + chat_messages**
-4. **WebRTC 시그널링 테이블/메시지 스펙 확정**
-
-원하는 다음 작업이 뭐야?
-
-- A) Spring Boot JPA 엔티티 설계(연관관계 포함)
-- B) REST API 표(엔드포인트/req/res/권한)
-- C) WebSocket 토픽 + 메시지 DTO 스펙(STOMP)
-- D) 시드 데이터/더미데이터 생성 SQL
