@@ -4,6 +4,17 @@ import SockJS from 'sockjs-client';
 
 type ChatMessage = {
   type: 'SYSTEM' | 'TEXT';
+  eventType:
+    | 'JOIN'
+    | 'LEAVE'
+    | 'MUTE'
+    | 'KICK'
+    | 'ROLE_CHANGE'
+    | 'HAND_UP'
+    | 'REACTION'
+    | 'NOTICE_PIN'
+    | 'NOTICE_UNPIN'
+    | 'TALK';
   roomId: string;
   sender: string;
   message: string;
@@ -56,6 +67,7 @@ export default function App() {
           destination: `/pub/chat/room/${roomId}`,
           body: JSON.stringify({
             type: 'SYSTEM',
+            eventType: 'JOIN',
             roomId,
             sender,
             message: `${sender} joined`,
@@ -102,6 +114,7 @@ export default function App() {
       destination: `/pub/chat/room/${roomId}`,
       body: JSON.stringify({
         type: 'TEXT',
+        eventType: 'TALK',
         roomId,
         sender,
         message: text.trim(),
