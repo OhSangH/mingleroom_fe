@@ -4,16 +4,17 @@ import TextField from '@mui/material/TextField';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { login } from '@/features/auth/api';
+import { signup } from '@/features/auth/api';
 
 const schema = z.object({
+  name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
 });
 
 type FormValues = z.infer<typeof schema>;
 
-export default function LoginForm() {
+export default function SignupForm() {
   const {
     register,
     handleSubmit,
@@ -23,11 +24,18 @@ export default function LoginForm() {
   });
 
   const onSubmit = async (values: FormValues) => {
-    await login(values);
+    await signup(values);
   };
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
+      <TextField
+        label="이름"
+        fullWidth
+        {...register('name')}
+        error={Boolean(errors.name)}
+        helperText={errors.name?.message}
+      />
       <TextField
         label="이메일"
         type="email"
@@ -45,7 +53,7 @@ export default function LoginForm() {
         helperText={errors.password?.message}
       />
       <Button type="submit" variant="contained" fullWidth disabled={isSubmitting}>
-        {isSubmitting ? '로그인 중...' : '로그인'}
+        {isSubmitting ? '가입 중...' : '회원가입'}
       </Button>
     </form>
   );
