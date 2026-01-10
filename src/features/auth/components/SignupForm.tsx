@@ -4,10 +4,10 @@ import TextField from '@mui/material/TextField';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { signup } from '@/features/auth/api';
+import { signup } from '@/features/auth/api/api';
 
 const schema = z.object({
-  name: z.string().min(2),
+  username: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
 });
@@ -28,31 +28,31 @@ export default function SignupForm() {
   };
 
   return (
-    <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
+    <form className='space-y-5' onSubmit={handleSubmit(onSubmit)}>
       <TextField
-        label="이름"
+        label='이름'
         fullWidth
-        {...register('name')}
-        error={Boolean(errors.name)}
-        helperText={errors.name?.message}
+        {...register('username')}
+        error={Boolean(errors.username)}
+        helperText={errors.username?.message}
       />
       <TextField
-        label="이메일"
-        type="email"
+        label='이메일'
+        type='email'
         fullWidth
         {...register('email')}
         error={Boolean(errors.email)}
         helperText={errors.email?.message}
       />
       <TextField
-        label="비밀번호"
-        type="password"
+        label='비밀번호'
+        type='password'
         fullWidth
         {...register('password')}
         error={Boolean(errors.password)}
         helperText={errors.password?.message}
       />
-      <Button type="submit" variant="contained" fullWidth disabled={isSubmitting}>
+      <Button type='submit' variant='contained' fullWidth disabled={isSubmitting}>
         {isSubmitting ? '가입 중...' : '회원가입'}
       </Button>
     </form>

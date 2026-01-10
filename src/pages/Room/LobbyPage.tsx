@@ -14,10 +14,10 @@ export default function LobbyPage() {
   const [speakerEnabled, setSpeakerEnabled] = useState(true);
 
   const handleJoin = () => {
-    // TODO(10): Implement WebRTC media preview and join flow.
-    // - Why: lobby must validate mic/cam before joining.
-    // - Steps: request media, render preview, handle permissions.
-    // - Done when: user can see mic state and join the room.
+    // TODO(10): WebRTC 미디어 미리보기와 참가 흐름 구현.
+    // - 이유: 로비에서 입장 전 마이크/카메라를 확인해야 함.
+    // - 단계: 미디어 요청, 미리보기 렌더링, 권한 처리.
+    // - 완료 조건: 사용자가 마이크 상태를 확인하고 룸에 입장 가능함.
   };
 
   return (

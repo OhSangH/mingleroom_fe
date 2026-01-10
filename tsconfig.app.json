@@ -30,5 +30,5 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src"]
+  "include": ["src", "기록/App.tsx", "기록/main.tsx"]
 }

@@ -1,43 +1,43 @@
 import { Route, Routes } from 'react-router-dom';
 
 import { ProtectedRoute, PublicOnlyRoute } from '@/app/router/route-guards';
-import DashboardPage from '@/pages/DashboardPage';
-import LandingPage from '@/pages/LandingPage';
-import LobbyPage from '@/pages/LobbyPage';
-import LoginPage from '@/pages/LoginPage';
-import NotFoundPage from '@/pages/NotFoundPage';
-import RoomDetailPage from '@/pages/RoomDetailPage';
-import SignupPage from '@/pages/SignupPage';
+import DashboardPage from '@/pages/Room/DashboardPage';
+import HomePage from '@/pages/Home/HomePage';
+import LobbyPage from '@/pages/Room/LobbyPage';
+import LoginPage from '@/pages/Login/LoginPage';
+import NotFoundPage from '@/pages/NotFound/NotFoundPage';
+import RoomDetailPage from '@/pages/Room/RoomDetailPage';
+import SignupPage from '@/pages/Login/SignupPage';
 
 export default function AppRouter() {
   return (
     <Routes>
       <Route
-        path="/"
+        path='/'
         element={
-          <PublicOnlyRoute redirectTo="/dashboard">
-            <LandingPage />
+          <PublicOnlyRoute redirectTo='/dashboard'>
+            <HomePage />
           </PublicOnlyRoute>
         }
       />
       <Route
-        path="/login"
+        path='/login'
         element={
-          <PublicOnlyRoute redirectTo="/dashboard">
+          <PublicOnlyRoute redirectTo='/dashboard'>
             <LoginPage />
           </PublicOnlyRoute>
         }
       />
       <Route
-        path="/signup"
+        path='/signup'
         element={
-          <PublicOnlyRoute redirectTo="/dashboard">
+          <PublicOnlyRoute redirectTo='/dashboard'>
             <SignupPage />
           </PublicOnlyRoute>
         }
       />
       <Route
-        path="/dashboard"
+        path='/dashboard'
         element={
           <ProtectedRoute>
             <DashboardPage />
@@ -45,7 +45,7 @@ export default function AppRouter() {
         }
       />
       <Route
-        path="/lobby/:roomId"
+        path='/lobby/:roomId'
         element={
           <ProtectedRoute>
             <LobbyPage />
@@ -53,14 +53,14 @@ export default function AppRouter() {
         }
       />
       <Route
-        path="/room/:roomId"
+        path='/room/:roomId'
         element={
           <ProtectedRoute>
             <RoomDetailPage />
           </ProtectedRoute>
         }
       />
-      <Route path="*" element={<NotFoundPage />} />
+      <Route path='*' element={<NotFoundPage />} />
     </Routes>
   );
 }

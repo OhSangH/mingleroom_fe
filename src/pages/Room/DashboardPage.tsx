@@ -3,7 +3,7 @@ import Button from '@mui/material/Button';
 import { Plus } from 'lucide-react';
 
 import type { Room } from '@/entities/room/types';
-import { useAuthStore } from '@/features/auth/store';
+import { useAuthStore } from '@/features/auth/store/auth.store';
 import CreateRoomDialog from '@/features/dashboard/components/CreateRoomDialog';
 import RoomCard from '@/features/dashboard/components/RoomCard';
 import WorkspaceSelect from '@/features/dashboard/components/WorkspaceSelect';
@@ -36,20 +36,20 @@ export default function DashboardPage() {
   const rooms = useMemo(() => sampleRooms, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-slate-100 text-[color:var(--foreground)]">
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+    <div className='min-h-screen bg-gradient-to-br from-white via-slate-50 to-slate-100 text-[color:var(--foreground)]'>
+      <div className='mx-auto max-w-6xl px-6 py-10'>
+        <div className='flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between'>
           <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-[color:var(--muted-foreground)]">대시보드</p>
-            <h1 className="text-3xl font-semibold">내 회의실</h1>
+            <p className='text-xs uppercase tracking-[0.4em] text-[color:var(--muted-foreground)]'>대시보드</p>
+            <h1 className='text-3xl font-semibold'>내 회의실</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className='flex items-center gap-3'>
             <WorkspaceSelect workspaces={sampleWorkspaces} value={workspaceId} onChange={setWorkspaceId} />
-            <Button variant="contained" startIcon={<Plus size={16} />} onClick={() => setIsDialogOpen(true)}>
+            <Button variant='contained' startIcon={<Plus size={16} />} onClick={() => setIsDialogOpen(true)}>
               새 회의실
             </Button>
             <DropdownMenu>
-              <DropdownMenuTrigger className="rounded-full border border-[color:var(--border)] px-4 py-2 text-sm">
+              <DropdownMenuTrigger className='rounded-full border border-[color:var(--border)] px-4 py-2 text-sm'>
                 계정
               </DropdownMenuTrigger>
               <DropdownMenuContent>
@@ -62,7 +62,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className='mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3'>
           {rooms.map((room) => (
             <RoomCard key={room.id} room={room} onJoin={() => {}} />
           ))}

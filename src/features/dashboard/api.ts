@@ -17,25 +17,25 @@ export const roomKeys = {
 };
 
 export async function fetchWorkspaces(): Promise<Workspace[]> {
-  // TODO(7): Implement react-query queryFn for workspaces.
-  // - Why: dashboard needs data to render workspace filters.
-  // - Steps: call API, map response, handle errors with retries.
-  // - Done when: workspace list renders with real data.
+  // TODO(7): 워크스페이스용 react-query queryFn 구현.
+  // - 이유: 대시보드에 워크스페이스 필터 렌더링 데이터가 필요함.
+  // - 단계: API 호출, 응답 매핑, 재시도로 오류 처리.
+  // - 완료 조건: 워크스페이스 목록이 실제 데이터로 렌더링됨.
   throw new Error('TODO');
 }
 
 export async function fetchRooms(_workspaceId?: string): Promise<Room[]> {
-  // TODO(7): Implement react-query queryFn for rooms.
-  // - Why: dashboard cards depend on room list data.
-  // - Steps: call API, map response, add pagination if needed.
-  // - Done when: room cards render from server payload.
+  // TODO(7): 룸용 react-query queryFn 구현.
+  // - 이유: 대시보드 카드가 룸 목록 데이터에 의존함.
+  // - 단계: API 호출, 응답 매핑, 필요 시 페이지네이션 추가.
+  // - 완료 조건: 룸 카드가 서버 페이로드로 렌더링됨.
   throw new Error('TODO');
 }
 
 export async function createRoom(_payload: { title: string; description?: string }): Promise<Room> {
-  // TODO(7): Implement react-query mutationFn for room creation.
-  // - Why: dialog submission must create a room on the server.
-  // - Steps: call API, return created room, invalidate room list.
-  // - Done when: new room appears without full refresh.
+  // TODO(7): 룸 생성용 react-query mutationFn 구현.
+  // - 이유: 다이얼로그 제출 시 서버에 룸이 생성되어야 함.
+  // - 단계: API 호출, 생성된 룸 반환, 룸 목록 무효화.
+  // - 완료 조건: 전체 새로고침 없이 새 룸이 표시됨.
   throw new Error('TODO');
 }
