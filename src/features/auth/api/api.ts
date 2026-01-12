@@ -4,6 +4,7 @@ import { AxiosError } from 'axios';
 import { useAuthStore } from '../store/auth.store';
 import { mapUser } from '@/features/user/api/api';
 import type { AuthResponse, AuthResponseDto, LoginPayload, SignupPayload } from '../types';
+import { z } from 'zod';
 
 function extractAccessToken(dto: AuthResponseDto): string | null {
   return dto.accessToken ?? dto.token ?? dto.data?.accessToken ?? dto.data?.token ?? null;
@@ -61,3 +62,50 @@ export async function fetchMe(): Promise<User> {
     throw e;
   }
 }
+
+export const passwordSchema = z.string().superRefine((val, ctx) => {
+  // 1) 공백 금지
+  if (/\s/.test(val)) {
+    ctx.addIssue({
+      code: 'custom',
+      message: '비밀번호에 공백을 포함할 수 없습니다.',
+    });
+  }
+
+  // 2) 길이
+  if (val.length < 8) {
+    ctx.addIssue({
+      code: 'custom',
+      message: '비밀번호는 8자 이상이어야 합니다.',
+    });
+  }
+
+  // 3) 각 조건 분리(원하는 것만 남기면 됨)
+  if (!/[a-z]/.test(val)) {
+    ctx.addIssue({
+      code: 'custom',
+      message: '소문자를 최소 1개 포함해야 합니다.',
+    });
+  }
+
+  if (!/[A-Z]/.test(val)) {
+    ctx.addIssue({
+      code: 'custom',
+      message: '대문자를 최소 1개 포함해야 합니다.',
+    });
+  }
+
+  if (!/\d/.test(val)) {
+    ctx.addIssue({
+      code: 'custom',
+      message: '숫자를 최소 1개 포함해야 합니다.',
+    });
+  }
+
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(val)) {
+    ctx.addIssue({
+      code: 'custom',
+      message: '특수문자를 최소 1개 포함해야 합니다.',
+    });
+  }
+});

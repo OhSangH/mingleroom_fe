@@ -4,14 +4,14 @@ import TextField from '@mui/material/TextField';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { fetchMe, login } from '@/features/auth/api/api';
+import { login } from '@/features/auth/api/api';
 import { useEffect } from 'react';
 import { useAuthStore } from '../store/auth.store';
 import { useNavigate } from 'react-router-dom';
 
 const schema = z.object({
-  email: z.string().email(),
-  password: z.string().min(5),
+  email: z.email('이메일 형식이 올바르지 않습니다.'),
+  password: z.string().min(1, '비밀번호를 입력해 주세요'),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -35,7 +35,7 @@ export default function LoginForm() {
     if (useAuthStore.getState().accessToken) {
       navigate('/dashboard', { replace: true });
     }
-  }, []);
+  });
 
   return (
     <form className='space-y-5' onSubmit={handleSubmit(onSubmit)}>
