@@ -1,7 +1,7 @@
 import { type UserApi, type User } from '@/features/user/types';
 import { apiClient } from '@/shared/api/axios';
 import { AxiosError } from 'axios';
-import { useAuthStore } from '../store/auth.store';
+import { useAuthStore } from '../store/authStore';
 import { mapUser } from '@/features/user/api/api';
 import type { AuthResponse, AuthResponseDto, LoginPayload, SignupPayload } from '../types';
 import { z } from 'zod';

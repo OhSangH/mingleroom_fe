@@ -1,69 +1,56 @@
-# React + TypeScript + Vite
+﻿# MingleRoom Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+실시간 채팅, WebRTC 음성 통화, FigJam 스타일 화이트보드를 한 공간에 묶은 온라인 회의/브레인스토밍 서비스의 프론트엔드입니다.
 
-Currently, two official plugins are available:
+## 프로젝트 개요
+- 회의에 필요한 커뮤니케이션(채팅/음성)과 협업(화이트보드/노트/액션아이템)을 하나의 룸에서 해결
+- 회의 종료 후에도 결과물이 남는 구조(회의록/보드 내보내기/요약/로그)
+- 실시간 협업 경험을 우선으로 설계된 UI/실시간 이벤트 흐름
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 핵심 가치
+- 화이트보드 중심 협업: 커서 프레즌스, 버전 히스토리/리플레이, 템플릿 지향
+- 문서화 흐름: 공유 노트 + 액션아이템 + 회의 종료 요약
+- 확장성 고려: WebSocket 멀티 인스턴스, 품질 지표, 관리자/감사 로그
 
-## Expanding the ESLint configuration
+## 기능 범위 (설계 기준)
+- 대기실/로비, 참가자 상태 표시, 손들기/리액션
+- 룸 채팅: 멘션, 답장(쓰레드), 공지/고정, 파일/이미지 공유
+- WebRTC 음성 통화(P2P Mesh → SFU 확장 고려)
+- 화이트보드: 드로잉/도형/포스트잇/커서 프레즌스/보드 페이지/내보내기
+- 회의 기록: 공유 노트, 액션아이템, 타임스탬프 북마크
+- 초대/권한: 초대 링크, 비밀번호 입장, 호스트 권한
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 기술 스택
+- React 19 + TypeScript + Vite
+- MUI + Emotion + Tailwind CSS
+- Zustand, TanStack React Query
+- STOMP/SockJS, WebRTC
+- i18next, Sentry, framer-motion
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 프로젝트 구조
+```
+src/
+  app/        # 앱 설정, 라우팅, 프로바이더
+  assets/     # 정적 리소스
+  entities/   # 도메인 타입
+  features/   # 기능 모듈 (auth/chat/room/webrtc/whiteboard 등)
+  pages/      # 라우트 페이지
+  shared/     # 공용 유틸/컴포넌트/상태
+  styles/     # 전역 스타일
+  App.tsx
+  main.tsx
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 환경 변수
+- `VITE_API_BASE_URL`: 백엔드 API 기본 주소
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 관련 문서
+- 기획/설계 개요: `기록/개요.md`
+- API 명세: `기록/API명세서.md`
+- 인증 설계 기록: `기록/Auth.md`
+- ERD: `기록/erd.md`
+- 개발 로드맵: `기록/개발 로드맵.md`
+- 라이브러리 정리: `기록/라이브러리 정리.md`
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 참고
+이 README는 현재 구현과 향후 로드맵을 함께 반영합니다. 상세 동작/스펙은 문서를 기준으로 업데이트합니다.

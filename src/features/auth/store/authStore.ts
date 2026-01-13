@@ -2,7 +2,6 @@ import type { User } from '@/features/user/types';
 import { create } from 'zustand';
 
 type AuthState = {
-  clearAuth(): unknown;
   user: User | null;
   accessToken: string | null;
   isLoading: boolean;
@@ -10,12 +9,10 @@ type AuthState = {
   setUser: (user: User | null) => void;
   bootstrap: () => Promise<void>;
   logout: () => void;
+  clearAuth: () => void;
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
-  clearAuth: () => {
-    throw new Error('TODO');
-  },
   user: null,
   accessToken: null,
   isLoading: false,
@@ -47,6 +44,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     // - 이유: 로그아웃 시 민감한 세션 데이터를 제거하기 위함.
     // - 단계: 스토어 초기화, 스토리지 키 삭제, 쿼리 무효화.
     // - 완료 조건: 보호 라우트가 /login으로 리다이렉트됨.
+    throw new Error('TODO');
+  },
+  clearAuth: () => {
     throw new Error('TODO');
   },
 }));

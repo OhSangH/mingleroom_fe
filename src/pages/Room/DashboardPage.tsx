@@ -3,7 +3,7 @@ import Button from '@mui/material/Button';
 import { Plus } from 'lucide-react';
 
 import type { Room } from '@/entities/room/types';
-import { useAuthStore } from '@/features/auth/store/auth.store';
+import { useAuthStore } from '@/features/auth/store/authStore';
 import CreateRoomDialog from '@/features/dashboard/components/CreateRoomDialog';
 import RoomCard from '@/features/dashboard/components/RoomCard';
 import WorkspaceSelect from '@/features/dashboard/components/WorkspaceSelect';

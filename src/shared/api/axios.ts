@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from 'axios';
 
 import { env } from '@/shared/lib/env';
-import { useAuthStore } from '@/features/auth/store/auth.store';
+import { useAuthStore } from '@/features/auth/store/authStore';
 
 export const apiClient = axios.create({
   baseURL: env.apiBaseUrl,
