@@ -5,11 +5,11 @@ export type User = {
   role: UserRole;
   profileImg: string | null;
   isBanned: boolean;
-  createdAt: string; // ✅ 프론트 표준화
+  createdAt: string;
   lastLoginAt: string | null;
   passwordUpdatedAt: string;
 };
-export type UserRole = 'USER' | 'ADMIN'; // 네 서버 enum에 맞춰 확장
+export type UserRole = 'USER' | 'ADMIN';
 
 export type UserApi = {
   id: number;
@@ -18,7 +18,7 @@ export type UserApi = {
   role: UserRole;
   profileImg: string | null;
   isBanned: boolean;
-  createdAt: string; // ✅ 서버 그대로(현재 오타/네이밍)
+  createdAt: string;
   lastLoginAt: string | null;
   passwordUpdatedAt: string;
 };

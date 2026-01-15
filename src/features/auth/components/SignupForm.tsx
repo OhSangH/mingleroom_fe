@@ -4,17 +4,20 @@ import TextField from '@mui/material/TextField';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { signup } from '@/features/auth/api/api';
+import { passwordSchema, signup } from '@/features/auth/api/api';
+import { useNavigate } from 'react-router-dom';
 
 const schema = z.object({
   username: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(6),
+  email: z.email(),
+  password: passwordSchema,
 });
 
 type FormValues = z.infer<typeof schema>;
 
 export default function SignupForm() {
+  const navigate = useNavigate();
+
   const {
     register,
     handleSubmit,
@@ -25,6 +28,8 @@ export default function SignupForm() {
 
   const onSubmit = async (values: FormValues) => {
     await signup(values);
+
+    navigate('/login', { replace: true });
   };
 
   return (

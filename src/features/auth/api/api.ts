@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { mapUser } from '@/features/user/api/api';
 import type { AuthResponse, AuthResponseDto, LoginPayload, SignupPayload } from '../types';
 import { z } from 'zod';
+import { endpoints } from '@/shared/api/endpoints';
 
 function extractAccessToken(dto: AuthResponseDto): string | null {
   return dto.accessToken ?? dto.token ?? dto.data?.accessToken ?? dto.data?.token ?? null;
@@ -24,13 +25,14 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
   // - 단계: /auth/login 호출, 응답 매핑, 오류 처리.
   // - 완료 조건: 유효한 자격 증명으로 사용자 + 토큰이 반환됨.
   try {
-    const res = await apiClient.post('/auth/login', payload, { skipAuth: true });
+    const res = await apiClient.post(endpoints.auth.login, payload, { skipAuth: true });
     const accessToken = extractAccessToken(res.data);
     if (!accessToken) throw new Error('로그인 응답에 accessToken이 없습니다.');
     useAuthStore.getState().setAccessToken(accessToken);
 
     const user = await fetchMe();
 
+    useAuthStore.getState().setUser(user);
     return { user, accessToken };
   } catch (e) {
     throw new Error(toErrorMessage(e));
@@ -42,7 +44,14 @@ export async function signup(payload: SignupPayload): Promise<void> {
   // - 이유: 계정 생성
   // - 단계: /auth/join 호출, 응답 매핑, 검증 오류 처리.
   // - 완료 조건: 회원가입 직후 신규 사용자가 로그인 가능함.
-  await apiClient.post<AuthResponseDto>('/auth/join', payload, { skipAuth: true });
+  try {
+    await apiClient.post<AuthResponseDto>(endpoints.auth.signup, payload, { skipAuth: true });
+  } catch (e) {
+    if (e instanceof AxiosError) {
+      throw e.response?.data;
+    }
+    throw e;
+  }
 }
 
 export async function fetchMe(): Promise<User> {
@@ -51,7 +60,7 @@ export async function fetchMe(): Promise<User> {
   // - 단계: /auth/me 호출, 응답 매핑, 401 처리.
   // - 완료 조건: 새로고침 시 사용자 프로필이 깜빡임 없이 로드됨.
   try {
-    const res = await apiClient.get<UserApi>('/auth/me');
+    const res = await apiClient.get<UserApi>(endpoints.auth.me);
     const user = mapUser(res.data);
 
     return user;
@@ -85,13 +94,6 @@ export const passwordSchema = z.string().superRefine((val, ctx) => {
     ctx.addIssue({
       code: 'custom',
       message: '소문자를 최소 1개 포함해야 합니다.',
-    });
-  }
-
-  if (!/[A-Z]/.test(val)) {
-    ctx.addIssue({
-      code: 'custom',
-      message: '대문자를 최소 1개 포함해야 합니다.',
     });
   }
 

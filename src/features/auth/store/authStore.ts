@@ -17,20 +17,20 @@ export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
   isLoading: false,
   setAccessToken: (token) => {
-    // TODO(4): 액세스 토큰을 스토어와 스토리지에 저장.
+    // DONE(4): 액세스 토큰을 스토어와 스토리지에 저장.
     // - 이유: 새로고침 사이에 인증 상태를 유지하기 위함.
     // - 단계: 상태 업데이트, localStorage 또는 쿠키에 동기화.
     // - 완료 조건: 리로드 후에도 토큰이 유지되고 axios에서 읽힘.
-    if (token) localStorage.setItem('jwt', token);
+    if (!token) throw new Error('토큰이 존재하지 않습니다.');
+    localStorage.setItem('jwt', token);
     set({ accessToken: token });
-    // throw new Error('TODO');
   },
-  setUser: () => {
-    // TODO(4): 인증 후 사용자 프로필 상태 업데이트.
+  setUser: (meUser) => {
+    // DONE(4): 인증 후 사용자 프로필 상태 업데이트.
     // - 이유: UI 표시를 위해 사용자 이름, 아바타, ID가 필요함.
     // - 단계: 사용자 객체 저장, 로그아웃 시 null 유지.
     // - 완료 조건: 로그인 후 헤더에 올바른 사용자 이름 표시.
-    throw new Error('TODO');
+    set({ user: meUser });
   },
   bootstrap: async () => {
     // TODO(4): 앱 로드 시 인증 상태 하이드레이트.
