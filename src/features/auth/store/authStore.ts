@@ -1,28 +1,31 @@
 import type { User } from '@/features/user/types';
 import { create } from 'zustand';
+import { fetchMe, logoutApi } from '../api/api';
 
 type AuthState = {
   user: User | null;
   accessToken: string | null;
   isLoading: boolean;
+
   setAccessToken: (token: string | null) => void;
   setUser: (user: User | null) => void;
   bootstrap: () => Promise<void>;
-  logout: () => void;
+
+  logout: () => Promise<void>;
   clearAuth: () => void;
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   accessToken: null,
   isLoading: false,
+
   setAccessToken: (token) => {
-    // DONE(4): 액세스 토큰을 스토어와 스토리지에 저장.
+    // DONE(4): 액세스 토큰을 스토어 저장.
     // - 이유: 새로고침 사이에 인증 상태를 유지하기 위함.
-    // - 단계: 상태 업데이트, localStorage 또는 쿠키에 동기화.
+    // - 단계: 상태 업데이트, 쿠키에 동기화.
     // - 완료 조건: 리로드 후에도 토큰이 유지되고 axios에서 읽힘.
     if (!token) throw new Error('토큰이 존재하지 않습니다.');
-    localStorage.setItem('jwt', token);
     set({ accessToken: token });
   },
   setUser: (meUser) => {
@@ -37,16 +40,28 @@ export const useAuthStore = create<AuthState>((set) => ({
     // - 이유: 수동 로그인 없이 새로고침 후 세션을 유지하기 위함.
     // - 단계: 토큰 읽기, fetchMe 호출, 상태 업데이트.
     // - 완료 조건: 로딩 스피너가 끝나고 사용자 상태가 설정됨.
-    throw new Error('TODO');
+    set({ isLoading: true });
+    try {
+      const me = await fetchMe();
+      set({ user: me });
+    } catch {
+      get().clearAuth();
+    } finally {
+      set({ isLoading: false });
+    }
   },
-  logout: () => {
+  logout: async () => {
     // TODO(4): 인증 상태와 캐시된 토큰 초기화.
     // - 이유: 로그아웃 시 민감한 세션 데이터를 제거하기 위함.
     // - 단계: 스토어 초기화, 스토리지 키 삭제, 쿼리 무효화.
     // - 완료 조건: 보호 라우트가 /login으로 리다이렉트됨.
-    throw new Error('TODO');
+    try {
+      await logoutApi();
+    } finally {
+      get().clearAuth();
+    }
   },
   clearAuth: () => {
-    throw new Error('TODO');
+    set({ user: null, accessToken: null, isLoading: false });
   },
 }));

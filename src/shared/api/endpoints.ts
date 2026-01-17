@@ -3,6 +3,7 @@ export const endpoints = {
     login: '/auth/login',
     signup: '/auth/join',
     me: '/auth/me',
+    logout: '/auth/logout',
   },
   rooms: {
     list: '/rooms',

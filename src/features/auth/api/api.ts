@@ -19,7 +19,7 @@ function toErrorMessage(error: unknown): string {
   return data?.message ?? data?.error ?? `요청 실패 (HTTP ${status ?? '?'})`;
 }
 
-export async function login(payload: LoginPayload): Promise<AuthResponse> {
+export async function loginApi(payload: LoginPayload): Promise<AuthResponse> {
   // DONE(3): 로그인 API 호출 구현.
   // - 이유: 사용자를 인증하고 액세스 토큰을 받기 위함.
   // - 단계: /auth/login 호출, 응답 매핑, 오류 처리.
@@ -39,7 +39,7 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
   }
 }
 
-export async function signup(payload: SignupPayload): Promise<void> {
+export async function signupApi(payload: SignupPayload): Promise<void> {
   // DONE(3): 회원가입 API 호출 구현.
   // - 이유: 계정 생성
   // - 단계: /auth/join 호출, 응답 매핑, 검증 오류 처리.
@@ -47,10 +47,7 @@ export async function signup(payload: SignupPayload): Promise<void> {
   try {
     await apiClient.post<AuthResponseDto>(endpoints.auth.signup, payload, { skipAuth: true });
   } catch (e) {
-    if (e instanceof AxiosError) {
-      throw e.response?.data;
-    }
-    throw e;
+    throw new Error(toErrorMessage(e));
   }
 }
 
@@ -68,12 +65,25 @@ export async function fetchMe(): Promise<User> {
     if (e instanceof AxiosError && e.response?.status === 401) {
       useAuthStore.getState().clearAuth();
     }
-    throw e;
+    throw new Error(toErrorMessage(e));
+  }
+}
+
+export async function logoutApi(): Promise<void> {
+  try {
+    const res = await apiClient.post(endpoints.auth.logout);
+    if (res.data !== 'ok') {
+      throw new Error('refresh token 제거 실패');
+    }
+  } catch (e) {
+    if (e instanceof AxiosError && e.response?.status === 401) {
+      useAuthStore.getState().clearAuth();
+    }
+    throw new Error(toErrorMessage(e));
   }
 }
 
 export const passwordSchema = z.string().superRefine((val, ctx) => {
-  // 1) 공백 금지
   if (/\s/.test(val)) {
     ctx.addIssue({
       code: 'custom',
@@ -81,7 +91,6 @@ export const passwordSchema = z.string().superRefine((val, ctx) => {
     });
   }
 
-  // 2) 길이
   if (val.length < 8) {
     ctx.addIssue({
       code: 'custom',
@@ -89,7 +98,6 @@ export const passwordSchema = z.string().superRefine((val, ctx) => {
     });
   }
 
-  // 3) 각 조건 분리(원하는 것만 남기면 됨)
   if (!/[a-z]/.test(val)) {
     ctx.addIssue({
       code: 'custom',

@@ -4,7 +4,7 @@ import TextField from '@mui/material/TextField';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { login } from '@/features/auth/api/api';
+import { loginApi } from '@/features/auth/api/api';
 import { useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
@@ -28,7 +28,7 @@ export default function LoginForm() {
   });
 
   const onSubmit = async (values: FormValues) => {
-    await login(values);
+    await loginApi(values);
   };
 
   useEffect(() => {
