@@ -1,9 +1,10 @@
 import { useAuthStore } from '../store/authStore';
 
 export function useAuth() {
-  const { user, isLoading } = useAuthStore((state) => ({
+  const { user, isLoading, hasBootstrapped } = useAuthStore((state) => ({
     user: state.user,
     isLoading: state.isLoading,
+    hasBootstrapped: state.hasBootstrapped,
   }));
 
   const isAuthenticated = Boolean(user);
@@ -12,5 +13,6 @@ export function useAuth() {
     user,
     isAuthenticated,
     isLoading,
+    hasBootstrapped,
   };
 }

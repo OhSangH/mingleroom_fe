@@ -6,6 +6,7 @@ type AuthState = {
   user: User | null;
   accessToken: string | null;
   isLoading: boolean;
+  hasBootstrapped: boolean;
 
   setAccessToken: (token: string | null) => void;
   setUser: (user: User | null) => void;
@@ -19,6 +20,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   accessToken: null,
   isLoading: false,
+  hasBootstrapped: false,
 
   setAccessToken: (token) => {
     // DONE(4): 액세스 토큰을 스토어 저장.
@@ -47,7 +49,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
       get().clearAuth();
     } finally {
-      set({ isLoading: false });
+      set({ isLoading: false, hasBootstrapped: true });
     }
   },
   logout: async () => {
