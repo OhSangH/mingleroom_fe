@@ -66,9 +66,10 @@ apiClient.interceptors.response.use(
     const url = originalConfig?.url ?? '';
     const isAuthEndpoint =
       url.includes('/auth/login') || url.includes('/auth/refresh') || url.includes('/auth/reissue');
+    const isMeEndpoint = url.includes('/auth/me');
 
     if (isAuthEndpoint) throw error;
-
+    if (isMeEndpoint) throw error;
     originalConfig._retry = true;
 
     try {
@@ -98,5 +99,5 @@ apiClient.interceptors.response.use(
       useAuthStore.getState().clearAuth();
       throw e;
     }
-  }
+  },
 );

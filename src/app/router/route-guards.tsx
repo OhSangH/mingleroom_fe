@@ -11,7 +11,8 @@ type RouteGuardProps = {
 
 export function ProtectedRoute({ children, redirectTo = '/login' }: RouteGuardProps) {
   const { isAuthenticated, isLoading, hasBootstrapped } = useAuth();
-
+  console.log('hasBootstrapped : ' + hasBootstrapped);
+  console.log('isLoading : ' + isLoading);
   if (!hasBootstrapped || isLoading) {
     return <LoadingScreen label='세션을 확인 중이에요...' />;
   }
@@ -26,9 +27,9 @@ export function ProtectedRoute({ children, redirectTo = '/login' }: RouteGuardPr
 }
 
 export function PublicOnlyRoute({ children, redirectTo = '/dashboard' }: RouteGuardProps) {
-  const { isAuthenticated, isLoading, hasBootstrapped } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
-  if (!hasBootstrapped || isLoading) {
+  if (isLoading) {
     return <LoadingScreen label='불러오는 중...' />;
   }
 

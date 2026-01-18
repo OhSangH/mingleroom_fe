@@ -56,7 +56,7 @@ export default function DashboardPage() {
                 <DropdownMenuLabel>프로필</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>설정</DropdownMenuItem>
-                <DropdownMenuItem onSelect={logout}>로그아웃</DropdownMenuItem>
+                <DropdownMenuItem onClick={logout}>로그아웃</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

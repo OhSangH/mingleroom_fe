@@ -6,6 +6,7 @@ import { Toaster } from 'sonner';
 
 import theme from '@/app/theme/theme';
 import LoadingScreen from '@/shared/ui/LoadingScreen';
+import { useAuthStore } from '@/features/auth/store/authStore';
 
 type AppProvidersProps = {
   children: ReactNode;
@@ -31,14 +32,15 @@ export default function AppProviders({ children }: AppProvidersProps) {
   useEffect(() => {
     initSentry();
     initI18n();
+    useAuthStore.getState().bootstrap();
   }, []);
 
   return (
-    <ErrorBoundary fallback={<LoadingScreen label="문제가 발생했어요." />}>
+    <ErrorBoundary fallback={<LoadingScreen label='문제가 발생했어요.' />}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider theme={theme}>
           {children}
-          <Toaster richColors position="top-right" />
+          <Toaster richColors position='top-right' />
         </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>

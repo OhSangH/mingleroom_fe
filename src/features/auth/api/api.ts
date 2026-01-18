@@ -71,7 +71,7 @@ export async function fetchMe(): Promise<User> {
 
 export async function logoutApi(): Promise<void> {
   try {
-    const res = await apiClient.post(endpoints.auth.logout);
+    const res = await apiClient.post(endpoints.auth.logout, null, { skipAuth: true });
     if (res.data !== 'ok') {
       throw new Error('refresh token 제거 실패');
     }

@@ -38,11 +38,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: meUser });
   },
   bootstrap: async () => {
-    // TODO(4): 앱 로드 시 인증 상태 하이드레이트.
+    // DONE(4): 앱 로드 시 인증 상태 하이드레이트.
     // - 이유: 수동 로그인 없이 새로고침 후 세션을 유지하기 위함.
     // - 단계: 토큰 읽기, fetchMe 호출, 상태 업데이트.
     // - 완료 조건: 로딩 스피너가 끝나고 사용자 상태가 설정됨.
+    if (get().hasBootstrapped) return;
     set({ isLoading: true });
+    console.log('bootstrap 기동');
     try {
       const me = await fetchMe();
       set({ user: me });
@@ -50,13 +52,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       get().clearAuth();
     } finally {
       set({ isLoading: false, hasBootstrapped: true });
+      console.log(get().hasBootstrapped);
     }
   },
   logout: async () => {
-    // TODO(4): 인증 상태와 캐시된 토큰 초기화.
+    // DONE(4): 인증 상태와 캐시된 토큰 초기화.
     // - 이유: 로그아웃 시 민감한 세션 데이터를 제거하기 위함.
     // - 단계: 스토어 초기화, 스토리지 키 삭제, 쿼리 무효화.
     // - 완료 조건: 보호 라우트가 /login으로 리다이렉트됨.
+    console.log('로그아웃');
     try {
       await logoutApi();
     } finally {
