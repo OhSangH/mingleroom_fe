@@ -12,6 +12,7 @@ function extractAccessToken(dto: AuthResponseDto): string | null {
 }
 
 function toErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
   if (!(error instanceof AxiosError)) return '요청 중 알 수 없는 오류가 발생했습니다.';
   const status = error.response?.status;
   const data = error.response?.data as { message?: string; error?: string } | undefined;
@@ -29,6 +30,8 @@ export async function loginApi(payload: LoginPayload): Promise<AuthResponse> {
     const accessToken = extractAccessToken(res.data);
     if (!accessToken) throw new Error('로그인 응답에 accessToken이 없습니다.');
     useAuthStore.getState().setAccessToken(accessToken);
+
+    localStorage.setItem('hasSession', '1');
 
     const user = await fetchMe();
 
@@ -72,9 +75,24 @@ export async function fetchMe(): Promise<User> {
 export async function logoutApi(): Promise<void> {
   try {
     const res = await apiClient.post(endpoints.auth.logout, null, { skipAuth: true });
-    if (res.data !== 'ok') {
+    if (res.data?.ok !== true) {
       throw new Error('refresh token 제거 실패');
     }
+  } catch (e) {
+    if (e instanceof AxiosError && e.response?.status === 401) {
+      useAuthStore.getState().clearAuth();
+    }
+    throw new Error(toErrorMessage(e));
+  } finally {
+    localStorage.removeItem('hasSession');
+  }
+}
+
+export async function refreshToken(): Promise<void> {
+  try {
+    const res = await apiClient.post(endpoints.auth.refresh, null, { skipAuth: true });
+    const accessToken = extractAccessToken(res.data);
+    useAuthStore.getState().setAccessToken(accessToken);
   } catch (e) {
     if (e instanceof AxiosError && e.response?.status === 401) {
       useAuthStore.getState().clearAuth();

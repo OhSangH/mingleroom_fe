@@ -4,6 +4,7 @@ export const endpoints = {
     signup: '/auth/join',
     me: '/auth/me',
     logout: '/auth/logout',
+    refresh: '/auth/refresh',
   },
   rooms: {
     list: '/rooms',

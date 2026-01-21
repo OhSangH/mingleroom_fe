@@ -66,10 +66,12 @@ apiClient.interceptors.response.use(
     const url = originalConfig?.url ?? '';
     const isAuthEndpoint =
       url.includes('/auth/login') || url.includes('/auth/refresh') || url.includes('/auth/reissue');
-    const isMeEndpoint = url.includes('/auth/me');
 
     if (isAuthEndpoint) throw error;
-    if (isMeEndpoint) throw error;
+
+    const hasSession = localStorage.getItem('hasSession');
+    if (!hasSession) throw error;
+
     originalConfig._retry = true;
 
     try {
@@ -88,6 +90,7 @@ apiClient.interceptors.response.use(
       const newToken = await refreshPromise;
 
       if (!newToken) {
+        localStorage.removeItem('hasSession');
         useAuthStore.getState().clearAuth();
         throw error;
       }
