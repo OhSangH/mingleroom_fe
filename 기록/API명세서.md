@@ -1,494 +1,535 @@
-````md
-# API 명세서 (재정리) — 회의/브레인스토밍 서비스
+# MingleRoom API 명세서
 
-Spring Boot 3 + React(TypeScript)
+## 1. 개요
 
-> 규칙
-
-- **Auth 관련 REST는 `/auth/**`\*\*
-- 그 외는 도메인 기준으로 **`/room/**`, `/user/**`, `/file/**`, `/report/**`, `/admin/**`\*\*
-- 인증: `Authorization: Bearer <JWT>`
-- 날짜/시간: ISO-8601 (`2026-01-06T20:45:00+09:00`)
+- **Base URL**: `/api/v1` (예정)
+- **Auth**: `Authorization: Bearer <JWT>` 헤더 필수 (로그인/회원가입 제외)
+- **Date Format**: ISO-8601 (`yyyy-MM-dd'T'HH:mm:ssXXX`)
 
 ---
 
-## 0. 공통 규약
+## 2. 인증 (Auth) - `/auth`
 
-### 0.1 공통 응답 포맷(권장)
+### 2.1 회원가입
 
-- 성공
-
-```json
-{ "success": true, "data": {} }
-```
-````
-
-- 실패
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "ROOM_403",
-    "message": "권한이 없습니다.",
-    "details": {}
+- **POST** `/auth/signup`
+- **Request**:
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "password123",
+    "username": "홍길동"
   }
-}
-```
-
-### 0.2 공통 페이징(권장)
-
-- page 기반
-
-  - Query: `?page=0&size=20&sort=createdAt,desc`
-
-- 또는 cursor 기반(채팅 로그 등)
-
-  - Query: `?cursor=100&size=50`
-
----
-
-## 1. Auth (인증) — prefix: `/auth/**`
-
-### 1.1 회원가입
-
-| Method | Endpoint       | Auth | 설명     |
-| ------ | -------------- | ---- | -------- |
-| POST   | `/auth/signup` | X    | 회원가입 |
-
-**Request**
-
-```json
-{ "email": "user@test.com", "password": "P@ssw0rd!", "username": "ohsang" }
-```
-
-**Response 201**
-
-```json
-{ "success": true, "data": { "userId": 1, "email": "user@test.com", "username": "ohsang" } }
-```
-
-### 1.2 로그인
-
-| Method | Endpoint      | Auth | 설명             |
-| ------ | ------------- | ---- | ---------------- |
-| POST   | `/auth/login` | X    | 로그인(JWT 발급) |
-
-**Request**
-
-```json
-{ "email": "user@test.com", "password": "P@ssw0rd!" }
-```
-
-**Response 200**
-
-```json
-{
-  "success": true,
-  "data": {
-    "accessToken": "jwt...",
-    "tokenType": "Bearer",
-    "expiresIn": 3600,
-    "user": { "userId": 1, "email": "user@test.com", "username": "ohsang" }
+  ```
+- **Response (201)**:
+  ```json
+  {
+    "id": 1,
+    "email": "user@example.com",
+    "username": "홍길동"
   }
-}
-```
+  ```
 
-### 1.3 내 정보
+### 2.2 로그인
 
-| Method | Endpoint   | Auth | 설명             |
-| ------ | ---------- | ---- | ---------------- |
-| GET    | `/auth/me` | O    | 현재 로그인 유저 |
+- **POST** `/auth/login`
+- **Request**:
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "password123"
+  }
+  ```
+- **Response (200)**:
+  ```json
+  {
+    "accessToken": "eyJhbGciOi...",
+    "refreshToken": "dGhpcyBpcy...",
+    "expiresIn": 3600
+  }
+  ```
+
+### 2.3 토큰 재발급
+
+- **POST** `/auth/refresh`
+- **Request**:
+  ```json
+  {
+    "refreshToken": "dGhpcyBpcy..."
+  }
+  ```
+- **Response (200)**:
+  ```json
+  {
+    "accessToken": "new_access_token...",
+    "refreshToken": "new_refresh_token..."
+  }
+  ```
+
+### 2.4 내 정보 조회
+
+- **GET** `/auth/me`
+- **Response (200)**:
+  ```json
+  {
+    "id": 1,
+    "email": "user@example.com",
+    "username": "홍길동",
+    "profileImg": "https://...",
+    "roleGlobal": "USER"
+  }
+  ```
 
 ---
 
-## 2. User (유저) — prefix: `/user/**`
+## 3. 사용자 (User) - `/users`
 
-### 2.1 내 프로필 조회/수정
+### 3.1 프로필 수정
 
-| Method | Endpoint   | Auth | 설명           |
-| ------ | ---------- | ---- | -------------- |
-| GET    | `/user/me` | O    | 내 프로필      |
-| PATCH  | `/user/me` | O    | 내 프로필 수정 |
+- **PATCH** `/users/me`
+- **Request**:
+  ```json
+  {
+    "username": "새이름",
+    "profileImg": "https://new-image.url"
+  }
+  ```
+- **Response (200)**: User 정보 반환
 
-**PATCH Request**
+### 3.2 비밀번호 변경
 
-```json
-{ "username": "newName", "profileImageUrl": "https://..." }
-```
-
-### 2.2 유저 프로필 조회(선택)
-
-| Method | Endpoint         | Auth | 설명                      |
-| ------ | ---------------- | ---- | ------------------------- |
-| GET    | `/user/{userId}` | O    | 유저 프로필(공개 범위 내) |
+- **PATCH** `/users/me/password`
+- **Request**:
+  ```json
+  {
+    "currentPassword": "oldPassword",
+    "newPassword": "newPassword"
+  }
+  ```
 
 ---
 
-## 3. Room (룸) — prefix: `/room/**`
+## 4. 워크스페이스 (Workspace) - `/workspaces`
 
-### 3.1 룸 생성
+### 4.1 워크스페이스 생성
 
-| Method | Endpoint | Auth | 설명                   |
-| ------ | -------- | ---- | ---------------------- |
-| POST   | `/room`  | O    | 룸 생성(생성자는 HOST) |
+- **POST** `/workspaces`
+- **Request**:
+  ```json
+  {
+    "name": "개발팀 워크스페이스"
+  }
+  ```
+- **Response (201)**:
+  ```json
+  {
+    "id": 1,
+    "name": "개발팀 워크스페이스",
+    "ownerId": 1,
+    "createdAt": "..."
+  }
+  ```
 
-**Request**
+### 4.2 내 워크스페이스 목록 조회
 
-```json
-{
-  "title": "기획 회의",
-  "visibility": "PUBLIC|PRIVATE",
-  "password": "1234"
-}
-```
+- **GET** `/workspaces`
+- **Response (200)**: List<Workspace>
 
-**Response 201**
+### 4.3 워크스페이스 상세 조회
 
-```json
-{
-  "success": true,
-  "data": {
-    "roomId": 3,
-    "title": "기획 회의",
+- **GET** `/workspaces/{workspaceId}`
+- **Response (200)**: Workspace 상세 정보
+
+### 4.4 워크스페이스 수정 (Owner Only)
+
+- **PATCH** `/workspaces/{workspaceId}`
+- **Request**:
+  ```json
+  {
+    "name": "변경된 이름"
+  }
+  ```
+
+### 4.5 워크스페이스 삭제 (Owner Only)
+
+- **DELETE** `/workspaces/{workspaceId}`
+
+---
+
+## 5. 워크스페이스 멤버 (Workspace Member) - `/workspaces/{workspaceId}/members`
+
+### 5.1 멤버 초대/추가
+
+- **POST** `/workspaces/{workspaceId}/members`
+- **Request**:
+  ```json
+  {
+    "email": "invitee@example.com",
+    "role": "MEMBER" // ADMIN, MEMBER
+  }
+  ```
+
+### 5.2 멤버 목록 조회
+
+- **GET** `/workspaces/{workspaceId}/members`
+- **Response (200)**: List<WorkspaceMember>
+
+### 5.3 멤버 권한 변경 (Admin Only)
+
+- **PATCH** `/workspaces/{workspaceId}/members/{userId}/role`
+- **Request**:
+  ```json
+  {
+    "role": "ADMIN"
+  }
+  ```
+
+### 5.4 멤버 추방 (Admin Only)
+
+- **DELETE** `/workspaces/{workspaceId}/members/{userId}`
+
+---
+
+## 6. 룸 (Room) - `/rooms`
+
+### 6.1 룸 생성
+
+- **POST** `/rooms`
+- **Request**:
+  ```json
+  {
+    "workspaceId": 1, // Optional (워크스페이스 내부 룸일 경우)
+    "title": "주간 회의",
+    "visibility": "PRIVATE", // PUBLIC, PRIVATE
+    "password": "roomPassword", // optional
+    "invitePolicy": "OPEN" // OPEN, INVITE_ONLY
+  }
+  ```
+- **Response (201)**:
+  ```json
+  {
+    "id": 10,
+    "title": "주간 회의",
+    "hostId": 1,
     "visibility": "PRIVATE",
-    "hostUserId": 1,
-    "createdAt": "2026-01-06T20:30:00+09:00"
+    "locked": false
   }
-}
-```
+  ```
 
-### 3.2 룸 목록/검색
+### 6.2 룸 목록 조회
 
-| Method | Endpoint | Auth | 설명                 |
-| ------ | -------- | ---- | -------------------- |
-| GET    | `/room`  | O    | 룸 목록(검색/페이징) |
+- **GET** `/rooms`
+- **Query Params**: `workspaceId`, `page`, `size`, `keyword`
+- **Response (200)**: Page<Room>
 
-**Query 예시**
+### 6.3 룸 상세 조회
 
-- `?keyword=기획&visibility=PUBLIC&page=0&size=20`
+- **GET** `/rooms/{roomId}`
+- **Response (200)**: Room 상세 정보
 
-### 3.3 룸 상세/수정/삭제
+### 6.4 룸 입장 (멤버십 생성)
 
-| Method | Endpoint         | Auth    | 설명              |
-| ------ | ---------------- | ------- | ----------------- |
-| GET    | `/room/{roomId}` | O       | 룸 상세 + 내 role |
-| PATCH  | `/room/{roomId}` | O(HOST) | 룸 설정 변경      |
-| DELETE | `/room/{roomId}` | O(HOST) | 룸 삭제           |
+- **POST** `/rooms/{roomId}/join`
+- **Request**:
+  ```json
+  {
+    "password": "roomPassword" // 비공개 방일 경우
+  }
+  ```
+- **Response (200)**:
+  ```json
+  {
+    "roleInRoom": "MEMBER",
+    "joinedAt": "2024-01-01T10:00:00Z"
+  }
+  ```
 
-**PATCH Request(예시)**
+### 6.5 룸 설정 변경 (Host Only)
 
-```json
-{ "title": "기획 회의(수정)", "visibility": "PRIVATE" }
-```
-
-### 3.4 룸 잠금(비밀번호) (선택)
-
-| Method | Endpoint              | Auth    | 설명               |
-| ------ | --------------------- | ------- | ------------------ |
-| POST   | `/room/{roomId}/lock` | O(HOST) | 잠금/비밀번호 설정 |
-| DELETE | `/room/{roomId}/lock` | O(HOST) | 잠금 해제          |
+- **PATCH** `/rooms/{roomId}`
+- **Request**:
+  ```json
+  {
+    "title": "변경된 제목",
+    "visibility": "PUBLIC",
+    "locked": true
+  }
+  ```
 
 ---
 
-## 4. Room Member (룸 멤버) — prefix: `/room/**`
+## 7. 룸 멤버 (Room Member) - `/rooms/{roomId}/members`
 
-### 4.1 룸 입장/퇴장
+### 7.1 멤버 목록 조회
 
-| Method | Endpoint               | Auth | 설명                      |
-| ------ | ---------------------- | ---- | ------------------------- |
-| POST   | `/room/{roomId}/join`  | O    | 룸 입장(멤버십 생성/갱신) |
-| POST   | `/room/{roomId}/leave` | O    | 룸 퇴장                   |
+- **GET** `/rooms/{roomId}/members`
+- **Response (200)**: List<RoomMember>
 
-**JOIN Request(잠금/초대 적용 시)**
+### 7.2 멤버 권한 변경 (Host Only)
 
-```json
-{ "password": "1234", "inviteToken": "inv-abc" }
-```
+- **PATCH** `/rooms/{roomId}/members/{userId}/role`
+- **Request**:
+  ```json
+  {
+    "role": "PRESENTER" // HOST, PRESENTER, MEMBER
+  }
+  ```
 
-### 4.2 멤버 목록
+### 7.3 멤버 강퇴 (Host Only)
 
-| Method | Endpoint                 | Auth | 설명      |
-| ------ | ------------------------ | ---- | --------- |
-| GET    | `/room/{roomId}/members` | O    | 멤버 목록 |
+- **DELETE** `/rooms/{roomId}/members/{userId}`
 
-**Response(예시)**
+---
 
-```json
-{
-  "success": true,
-  "data": [
-    { "userId": 1, "username": "ohsang", "roleInRoom": "HOST", "joinedAt": "2026-01-06T20:31:00+09:00" },
-    { "userId": 2, "username": "kim", "roleInRoom": "MEMBER", "joinedAt": "2026-01-06T20:32:00+09:00" }
+## 8. 채팅 (Chat) - `/rooms/{roomId}/chats`
+
+### 8.1 채팅 내역 조회
+
+- **GET** `/rooms/{roomId}/chats`
+- **Query Params**: `cursorId` (마지막 메시지 ID), `size`
+- **Response (200)**:
+  ```json
+  [
+    {
+      "id": 100,
+      "senderId": 1,
+      "senderName": "홍길동",
+      "type": "TEXT",
+      "content": "안녕하세요",
+      "createdAt": "..."
+    }
   ]
-}
-```
-
-### 4.3 권한/상태 제어(호스트 기능)
-
-| Method | Endpoint                               | Auth              | 설명                             |
-| ------ | -------------------------------------- | ----------------- | -------------------------------- |
-| PATCH  | `/room/{roomId}/members/{userId}/role` | O(HOST)           | 역할 변경(HOST/PRESENTER/MEMBER) |
-| POST   | `/room/{roomId}/members/{userId}/kick` | O(HOST)           | 강퇴                             |
-| POST   | `/room/{roomId}/members/{userId}/mute` | O(HOST/PRESENTER) | 음소거 강제                      |
-| DELETE | `/room/{roomId}/members/{userId}/mute` | O(HOST/PRESENTER) | 음소거 해제                      |
+  ```
 
 ---
 
-## 5. Invite (초대) — prefix: `/room/**`
+## 9. 화이트보드 (Whiteboard) - `/rooms/{roomId}/whiteboard`
 
-### 5.1 초대 링크 생성/검증
+### 9.1 페이지 목록 조회
 
-| Method | Endpoint                     | Auth    | 설명           |
-| ------ | ---------------------------- | ------- | -------------- |
-| POST   | `/room/{roomId}/invite`      | O(HOST) | 초대 토큰 생성 |
-| GET    | `/room/invite/{inviteToken}` | O       | 초대 토큰 검증 |
+- **GET** `/rooms/{roomId}/whiteboard/pages`
 
-**Invite 생성 Request**
+### 9.2 스냅샷 저장
 
-```json
-{ "expiresInMinutes": 60, "oneTime": true }
-```
-
-**Invite 생성 Response**
-
-```json
-{
-  "success": true,
-  "data": {
-    "inviteToken": "inv-abc",
-    "expiresAt": "2026-01-06T22:00:00+09:00"
+- **POST** `/rooms/{roomId}/whiteboard/pages/{pageId}/snapshot`
+- **Request**:
+  ```json
+  {
+    "version": 5,
+    "dataBlob": { ... } // JSON 데이터
   }
-}
-```
+  ```
+
+### 9.3 최신 스냅샷 조회
+
+- **GET** `/rooms/{roomId}/whiteboard/pages/{pageId}/snapshot`
 
 ---
 
-## 6. Chat (채팅) — REST는 조회/검색/고정용, 실시간은 WS
+## 10. 노트 (Note) - `/rooms/{roomId}/note`
 
-### 6.1 채팅 로그 조회
+### 10.1 노트 조회
 
-| Method | Endpoint                     | Auth | 설명                   |
-| ------ | ---------------------------- | ---- | ---------------------- |
-| GET    | `/room/{roomId}/chat`        | O    | 채팅 로그 조회(페이징) |
-| GET    | `/room/{roomId}/chat/search` | O    | 채팅 검색              |
-
-**MessageType (현재 enum 기준)**
-
-- `TEXT`, `FILE`, `IMAGE`, `BOARD_SNAPSHOT`
-
-**ChatMessage(예시)**
-
-```json
-{
-  "messageId": 100,
-  "roomId": 3,
-  "sender": { "userId": 1, "username": "ohsang" },
-  "type": "TEXT",
-  "content": "회의 시작합니다",
-  "createdAt": "2026-01-06T20:40:00+09:00",
-  "pinned": false
-}
-```
-
-### 6.2 고정 메시지(선택)
-
-| Method | Endpoint                              | Auth    | 설명      |
-| ------ | ------------------------------------- | ------- | --------- |
-| POST   | `/room/{roomId}/chat/{messageId}/pin` | O(HOST) | 고정      |
-| DELETE | `/room/{roomId}/chat/{messageId}/pin` | O(HOST) | 고정 해제 |
-
----
-
-## 7. File (파일) — prefix: `/file/**` (선택)
-
-### 7.1 Presigned 업로드(권장)
-
-| Method | Endpoint         | Auth | 설명                        |
-| ------ | ---------------- | ---- | --------------------------- |
-| POST   | `/file/presign`  | O    | presigned URL 발급          |
-| POST   | `/file/complete` | O    | 업로드 완료 처리(메타 저장) |
-| GET    | `/file/{fileId}` | O    | 파일 메타 조회              |
-
----
-
-## 8. Board (화이트보드) — REST는 스냅샷/히스토리, 실시간은 WS
-
-### 8.1 페이지/스냅샷/히스토리
-
-| Method | Endpoint                        | Auth | 설명          |
-| ------ | ------------------------------- | ---- | ------------- |
-| GET    | `/room/{roomId}/board/pages`    | O    | 페이지 목록   |
-| POST   | `/room/{roomId}/board/pages`    | O    | 페이지 생성   |
-| GET    | `/room/{roomId}/board/snapshot` | O    | 최신 스냅샷   |
-| POST   | `/room/{roomId}/board/snapshot` | O    | 스냅샷 저장   |
-| GET    | `/room/{roomId}/board/history`  | O    | 버전 히스토리 |
-
-**Board Snapshot 예시**
-
-```json
-{
-  "roomId": 3,
-  "pageNo": 1,
-  "version": 12,
-  "data": { "elements": [], "appState": {} },
-  "createdAt": "2026-01-06T21:10:00+09:00"
-}
-```
-
----
-
-## 9. Note / Action Item (회의록/할일) — prefix: `/room/**`
-
-### 9.1 공유 노트
-
-| Method | Endpoint              | Auth | 설명            |
-| ------ | --------------------- | ---- | --------------- |
-| GET    | `/room/{roomId}/note` | O    | 노트 조회       |
-| PUT    | `/room/{roomId}/note` | O    | 노트 저장(전체) |
-
-### 9.2 액션아이템
-
-| Method | Endpoint                           | Auth | 설명 |
-| ------ | ---------------------------------- | ---- | ---- |
-| POST   | `/room/{roomId}/action`            | O    | 생성 |
-| GET    | `/room/{roomId}/action`            | O    | 목록 |
-| PATCH  | `/room/{roomId}/action/{actionId}` | O    | 수정 |
-| DELETE | `/room/{roomId}/action/{actionId}` | O    | 삭제 |
-
----
-
-## 10. Bookmark (타임스탬프) — prefix: `/room/**` (선택)
-
-| Method | Endpoint                               | Auth | 설명        |
-| ------ | -------------------------------------- | ---- | ----------- |
-| POST   | `/room/{roomId}/bookmark`              | O    | 북마크 생성 |
-| GET    | `/room/{roomId}/bookmark`              | O    | 목록        |
-| DELETE | `/room/{roomId}/bookmark/{bookmarkId}` | O    | 삭제        |
-
----
-
-## 11. Poll (투표/설문) — prefix: `/room/**` (선택)
-
-| Method | Endpoint                              | Auth | 설명      |
-| ------ | ------------------------------------- | ---- | --------- |
-| POST   | `/room/{roomId}/poll`                 | O    | 투표 생성 |
-| GET    | `/room/{roomId}/poll`                 | O    | 목록      |
-| POST   | `/room/{roomId}/poll/{pollId}/vote`   | O    | 투표      |
-| GET    | `/room/{roomId}/poll/{pollId}/result` | O    | 결과      |
-
----
-
-## 12. Report (신고/피드백) — prefix: `/report/**` (선택)
-
-| Method | Endpoint           | Auth | 설명                 |
-| ------ | ------------------ | ---- | -------------------- |
-| POST   | `/report`          | O    | 신고(유저/메시지/룸) |
-| POST   | `/report/feedback` | O    | 피드백/버그리포트    |
-
----
-
-## 13. Admin (관리자) — prefix: `/admin/**` (선택)
-
-| Method | Endpoint         | Auth     | 설명      |
-| ------ | ---------------- | -------- | --------- |
-| GET    | `/admin/users`   | O(ADMIN) | 유저 목록 |
-| GET    | `/admin/rooms`   | O(ADMIN) | 룸 목록   |
-| GET    | `/admin/reports` | O(ADMIN) | 신고 목록 |
-| GET    | `/admin/audit`   | O(ADMIN) | 감사 로그 |
-
----
-
-# WebSocket(STOMP) 명세
-
-## WS Endpoint
-
-- 예: `/ws-stomp`
-
-## 인증(권장)
-
-- STOMP `CONNECT` Headers:
-
-  - `Authorization: Bearer <JWT>`
-
-## Destination 규칙
-
-- Client → Server(SEND): `/app/**`
-- Server → Client(SUBSCRIBE): `/topic/**`, 개인 큐는 `/user/queue/**`
-
-## WS Destination 표
-
-| 목적            | SEND                        | SUBSCRIBE                     |
-| --------------- | --------------------------- | ----------------------------- |
-| 채팅            | `/app/room/{roomId}/chat`   | `/topic/room/{roomId}/chat`   |
-| 룸 이벤트       | `/app/room/{roomId}/event`  | `/topic/room/{roomId}/event`  |
-| WebRTC 시그널링 | `/app/room/{roomId}/signal` | `/topic/room/{roomId}/signal` |
-| 화이트보드      | `/app/room/{roomId}/board`  | `/topic/room/{roomId}/board`  |
-| 개인 알림       | (서버 발행)                 | `/user/queue/notice`          |
-
-## WS 공통 Envelope(권장)
-
-```json
-{
-  "roomId": 3,
-  "senderUserId": 1,
-  "payload": {},
-  "createdAt": "2026-01-06T20:45:00+09:00"
-}
-```
-
-## WS: 채팅 메시지 payload
-
-> MessageType enum을 그대로 사용
-
-```json
-{
-  "type": "TEXT|FILE|IMAGE|BOARD_SNAPSHOT",
-  "content": "안녕하세요",
-  "replyToMessageId": 10,
-  "mentions": [2, 3]
-}
-```
-
-## WS: 룸 이벤트 payload (RoomEventType 예시)
-
-> 실제 `RoomEventType` enum에 맞춰 확정하면 됨
-
-```json
-{
-  "eventType": "JOIN|LEAVE|MUTE|KICK|ROLE_CHANGE|HAND_UP|REACTION",
-  "targetUserId": 2,
-  "data": { "emoji": "👏" }
-}
-```
-
-## WS: WebRTC 시그널링 payload
-
-```json
-{
-  "signalType": "PEER_JOIN|OFFER|ANSWER|ICE|PEER_LEAVE",
-  "fromUserId": 1,
-  "toUserId": 2,
-  "data": {
-    "sdp": "....",
-    "candidate": { "candidate": "...", "sdpMid": "0", "sdpMLineIndex": 0 }
+- **GET** `/rooms/{roomId}/note`
+- **Response (200)**:
+  ```json
+  {
+    "content": "회의록 내용...",
+    "version": 3,
+    "updatedAt": "..."
   }
-}
-```
+  ```
 
-## WS: 화이트보드 payload
+### 10.2 노트 저장 (전체 업데이트)
 
-```json
-{
-  "boardType": "DRAW|SHAPE|TEXT|CURSOR|SNAPSHOT|UNDO|REDO|PAGE_CHANGE",
-  "pageNo": 1,
-  "data": {}
-}
-```
+- **PUT** `/rooms/{roomId}/note`
+- **Request**:
+  ```json
+  {
+    "content": "수정된 회의록...",
+    "version": 4
+  }
+  ```
 
 ---
 
-# HTTP 상태코드 가이드(권장)
+## 11. 액션 아이템 (Action Item) - `/rooms/{roomId}/action-items`
 
-- 200 OK, 201 Created, 204 No Content
-- 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found, 409 Conflict, 429 Too Many Requests, 500 Internal Server Error
+### 11.1 액션 아이템 생성
+
+- **POST** `/rooms/{roomId}/action-items`
+- **Request**:
+  ```json
+  {
+    "title": "API 명세서 작성",
+    "assigneeId": 2,
+    "dueDate": "2024-01-10"
+  }
+  ```
+
+### 11.2 목록 조회
+
+- **GET** `/rooms/{roomId}/action-items`
+- **Query Params**: `status` (OPEN, DONE 등)
+
+### 11.3 상태 변경
+
+- **PATCH** `/rooms/{roomId}/action-items/{itemId}/status`
+- **Request**:
+  ```json
+  {
+    "status": "DONE"
+  }
+  ```
+
+### 11.4 수정/삭제
+
+- **PATCH** `/rooms/{roomId}/action-items/{itemId}`
+- **DELETE** `/rooms/{roomId}/action-items/{itemId}`
+
+---
+
+## 12. 투표 (Poll) - `/rooms/{roomId}/polls`
+
+### 12.1 투표 생성
+
+- **POST** `/rooms/{roomId}/polls`
+- **Request**:
+  ```json
+  {
+    "question": "점심 메뉴는?",
+    "anonymous": false,
+    "options": [
+      { "label": "짜장면", "sortOrder": 1 },
+      { "label": "짬뽕", "sortOrder": 2 }
+    ]
+  }
+  ```
+
+### 12.2 투표 목록 조회
+
+- **GET** `/rooms/{roomId}/polls`
+
+### 12.3 투표하기
+
+- **POST** `/rooms/{roomId}/polls/{pollId}/vote`
+- **Request**:
+  ```json
+  {
+    "optionId": 5
+  }
+  ```
+
+### 12.4 투표 결과 조회
+
+- **GET** `/rooms/{roomId}/polls/{pollId}/result`
+
+---
+
+## 13. 북마크 (Bookmark) - `/rooms/{roomId}/bookmarks`
+
+### 13.1 북마크 생성
+
+- **POST** `/rooms/{roomId}/bookmarks`
+- **Request**:
+  ```json
+  {
+    "label": "중요한 순간",
+    "atMs": 120000 // 회의 시작 후 2분 지점
+  }
+  ```
+
+### 13.2 북마크 목록 조회
+
+- **GET** `/rooms/{roomId}/bookmarks`
+
+### 13.3 북마크 삭제
+
+- **DELETE** `/rooms/{roomId}/bookmarks/{bookmarkId}`
+
+---
+
+## 14. 파일 첨부 (Attachment) - `/attachments`
+
+### 14.1 파일 업로드 (Presigned URL 요청 권장)
+
+- **POST** `/attachments/presigned-url`
+- **Request**:
+  ```json
+  {
+    "fileName": "image.png",
+    "fileSize": 10240,
+    "mimeType": "image/png"
+  }
+  ```
+- **Response (200)**:
+  ```json
+  {
+    "uploadUrl": "https://s3.aws...",
+    "publicUrl": "https://cdn...",
+    "storageKey": "..."
+  }
+  ```
+
+### 14.2 업로드 완료 처리 (메타데이터 저장)
+
+- **POST** `/attachments`
+- **Request**:
+  ```json
+  {
+    "fileName": "image.png",
+    "mimeType": "image/png",
+    "fileSize": 10240,
+    "storageProvider": "S3",
+    "storageKey": "...",
+    "publicUrl": "..."
+  }
+  ```
+
+---
+
+## 15. 신고 (Report) - `/reports`
+
+### 15.1 신고하기
+
+- **POST** `/reports`
+- **Request**:
+  ```json
+  {
+    "targetType": "USER", // USER, ROOM, CHAT
+    "targetId": 123,
+    "reason": "욕설 및 비방",
+    "detail": "채팅에서 심한 욕설을 했습니다."
+  }
+  ```
+
+---
+
+## 16. 감사 로그 (Audit Log) - `/audit-logs` (Admin Only)
+
+### 16.1 로그 조회
+
+- **GET** `/audit-logs`
+- **Query Params**: `workspaceId`, `roomId`, `actorId`, `page`, `size`
+
+---
+
+## 17. WebSocket (STOMP)
+
+### 17.1 연결 및 인증
+
+- **Endpoint**: `/ws-stomp`
+- **Header**: `Authorization: Bearer <token>`
+
+### 17.2 주요 토픽 (Subscribe)
+
+- `/topic/room/{roomId}/chat`: 채팅 메시지 수신
+- `/topic/room/{roomId}/event`: 입장/퇴장, 권한 변경 등 이벤트
+- `/topic/room/{roomId}/board`: 화이트보드 드로잉 데이터
+- `/topic/room/{roomId}/signal`: WebRTC 시그널링 (Offer/Answer/Candidate)
+
+### 17.3 메시지 발행 (Send)
+
+- `/app/chat`: 채팅 메시지 전송
+- `/app/board`: 화이트보드 데이터 전송
+- `/app/signal`: 시그널링 데이터 전송
