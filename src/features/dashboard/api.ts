@@ -1,4 +1,4 @@
-import type { Room } from '@/entities/room/types';
+import type { Room } from '@/features/room/types';
 
 export type Workspace = {
   id: string;
