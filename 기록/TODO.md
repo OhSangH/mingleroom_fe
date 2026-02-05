@@ -2,6 +2,12 @@
 
 - workspace member 관련 api 작성
 
+- workspace 글로벌 운영자의 접근 관련 로직 수정
+
+- workspace 오너 위임 api 작성
+
+- workspace 멤버의 개별 정보(필요한가?)
+
 ### 로그인 회원가입 스낵바 에러 스낵바 제작
 
 ## room 관련 로직 구성
