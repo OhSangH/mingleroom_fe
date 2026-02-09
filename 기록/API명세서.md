@@ -80,6 +80,16 @@
   }
   ```
 
+### 2.5 로그아웃
+
+- **POST** `/auth/logout`
+- **Response (200)**:
+  ```json
+  {
+    "message": "로그아웃 되었습니다."
+  }
+  ```
+
 ---
 
 ## 3. 사용자 (User) - `/users`
@@ -154,11 +164,21 @@
 
 - **DELETE** `/workspaces/{workspaceId}`
 
+### 4.6 워크스페이스 소유권 이전 (Owner Only)
+
+- **PATCH** `/workspaces/{workspaceId}/transfer-ownership`
+- **Request**:
+  ```json
+  {
+    "newOwnerId": 2
+  }
+  ```
+
 ---
 
 ## 5. 워크스페이스 멤버 (Workspace Member) - `/workspaces/{workspaceId}/members`
 
-### 5.1 멤버 초대/추가
+### 5.1 멤버 초대/추가 (이메일)
 
 - **POST** `/workspaces/{workspaceId}/members`
 - **Request**:
@@ -254,6 +274,50 @@
     "visibility": "PUBLIC",
     "locked": true
   }
+  ```
+
+### 6.6 룸 삭제 (Host Only)
+
+- **DELETE** `/rooms/{roomId}`
+
+### 6.7 룸 초대 링크 생성
+
+- **POST** `/rooms/{roomId}/invites`
+- **Request**:
+  ```json
+  {
+    "expiresAt": "2024-01-02T10:00:00Z", // optional
+    "maxUses": 10 // optional
+  }
+  ```
+- **Response (201)**:
+  ```json
+  {
+    "token": "a1b2c3d4...",
+    "inviteUrl": "https://mingleroom.com/invite/a1b2c3d4...",
+    "expiresAt": "..."
+  }
+  ```
+
+### 6.8 초대 토큰 조회 (입장 전 정보 확인)
+
+- **GET** `/rooms/invites/{token}`
+- **Response (200)**:
+  ```json
+  {
+    "room": { "id": 1, "title": "주간 회의", ... },
+    "inviter": { "id": 1, "username": "홍길동" },
+    "valid": true
+  }
+  ```
+
+### 6.9 초대 토큰으로 입장
+
+- **POST** `/rooms/invites/{token}/join`
+- **Response (200)**: `6.4 룸 입장`과 동일
+
+  ```
+
   ```
 
 ---
@@ -410,7 +474,19 @@
 
 - **GET** `/rooms/{roomId}/polls`
 
-### 12.3 투표하기
+### 12.3 투표 종료 (Host Only)
+
+- **PATCH** `/rooms/{roomId}/polls/{pollId}/close`
+- **Response (200)**:
+  ```json
+  {
+    "id": 1,
+    "closed": true,
+    "closedAt": "..."
+  }
+  ```
+
+### 12.4 투표하기
 
 - **POST** `/rooms/{roomId}/polls/{pollId}/vote`
 - **Request**:
@@ -420,7 +496,7 @@
   }
   ```
 
-### 12.4 투표 결과 조회
+### 12.5 투표 결과 조회
 
 - **GET** `/rooms/{roomId}/polls/{pollId}/result`
 
@@ -505,7 +581,27 @@
 
 ---
 
-## 16. 감사 로그 (Audit Log) - `/audit-logs` (Admin Only)
+## 16. 관리자 (Admin) - /admin
+
+### 16.1 신고 목록 조회
+
+- **GET** `/admin/reports`
+- **Query Params**: `status` (OPEN, RESOLVED 등), `page`, `size`
+
+### 16.2 신고 처리
+
+- **PATCH** `/admin/reports/{reportId}`
+- **Request**:
+  ```json
+  {
+    "status": "RESOLVED", // RESOLVED, REJECTED
+    "note": "처리 내용 메모..."
+  }
+  ```
+
+---
+
+## 17. 감사 로그 (Audit Log) - `/audit-logs` (Admin Only)
 
 ### 16.1 로그 조회
 
@@ -514,21 +610,21 @@
 
 ---
 
-## 17. WebSocket (STOMP)
+## 18. WebSocket (STOMP)
 
-### 17.1 연결 및 인증
+### 18.1 연결 및 인증
 
 - **Endpoint**: `/ws-stomp`
 - **Header**: `Authorization: Bearer <token>`
 
-### 17.2 주요 토픽 (Subscribe)
+### 18.2 주요 토픽 (Subscribe)
 
 - `/topic/room/{roomId}/chat`: 채팅 메시지 수신
 - `/topic/room/{roomId}/event`: 입장/퇴장, 권한 변경 등 이벤트
 - `/topic/room/{roomId}/board`: 화이트보드 드로잉 데이터
 - `/topic/room/{roomId}/signal`: WebRTC 시그널링 (Offer/Answer/Candidate)
 
-### 17.3 메시지 발행 (Send)
+### 18.3 메시지 발행 (Send)
 
 - `/app/chat`: 채팅 메시지 전송
 - `/app/board`: 화이트보드 데이터 전송
