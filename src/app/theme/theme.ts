@@ -1,36 +1,6 @@
 import { createTheme } from '@mui/material/styles';
-
-const theme = createTheme({
-  palette: {
-    mode: 'light',
-    primary: {
-      main: '#2b7fff',
-      contrastText: '#fafafa',
-    },
-    secondary: {
-      main: '#f8f8f9',
-      contrastText: '#4e463f',
-    },
-    error: {
-      main: '#e7000b',
-      contrastText: '#fafafa',
-    },
-    background: {
-      default: '#ffffff',
-      paper: '#ffffff',
-    },
-    text: {
-      primary: '#231d17',
-      secondary: '#71717b',
-    },
-    divider: '#e4e4e7',
-  },
-  shape: {
-    borderRadius: 10.4,
-  },
-  typography: {
-    fontFamily: '"Space Grotesk", "Segoe UI", system-ui, sans-serif',
-  },
+export default createTheme({
+ palette:{primary:{main:'#315e4c'},secondary:{main:'#7a8d69'},background:{default:'#f7f8f4',paper:'#ffffff'},text:{primary:'#293d33',secondary:'#728071'},divider:'#e2e7dc'},
+ shape:{borderRadius:12},typography:{fontFamily:'"Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif',button:{textTransform:'none',fontWeight:600}},
+ components:{MuiButton:{defaultProps:{disableElevation:true},styleOverrides:{root:{minHeight:40}}},MuiTooltip:{defaultProps:{arrow:true}}}
 });
-
-export default theme;

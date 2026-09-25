@@ -5,7 +5,9 @@ import { refreshToken } from '@/features/auth/api/api';
 import { connect, createClient, disconnect, type ChatConnectionState } from './stomp';
 export type ChatMessage = { id: string; sender: string; content: string; createdAt: string };
 type ServerMessage = { roomId: number; sender: string; message: string; type: string; eventType?: string | null };
-export function useRoomChat(roomId: string) {
+export function useRoomChat(roomId: string, boardEvents?: {onBoard:(data:unknown)=>void;onCursor:(data:unknown)=>void;onConnected:()=>void}) {
+  const events=useRef(boardEvents);events.current=boardEvents;
+  const cursorTime=useRef(0);
   const accessToken = useAuthStore(s => s.accessToken);
   const user = useAuthStore(s => s.user);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -19,7 +21,9 @@ export function useRoomChat(roomId: string) {
     let active = true;
     setState('connecting'); setError('');
     const client = createClient({ roomId, accessToken,
-      onState: (next, reason) => { if (active) { setState(next); if (reason) setError(reason); } },
+      onBoard: payload => { if(active) events.current?.onBoard(payload); },
+      onCursor: payload => { if(active) events.current?.onCursor(payload); },
+      onState: (next, reason) => { if (active) { setState(next); if (reason) setError(reason); if(next==='connected'){setError('');events.current?.onConnected();} } },
       onMessage: payload => {
         const dto = payload as Partial<ServerMessage> | null;
         if (!dto || String(dto.roomId) !== roomId || typeof dto.sender !== 'string' || typeof dto.message !== 'string') return;
@@ -44,5 +48,6 @@ export function useRoomChat(roomId: string) {
     try { setError(''); const previous=useAuthStore.getState().accessToken; await refreshToken(); if (useAuthStore.getState().accessToken === previous) setAttempt(n => n + 1); }
     catch { setState('error'); setError('로그인이 만료됐습니다. 다시 로그인해 주세요.'); }
   }, []);
-  return { messages, sendMessage, state, error, retry };
+  const sendCursor=useCallback((x:number,y:number)=>{if(!clientRef.current?.connected||Date.now()-cursorTime.current<120)return;cursorTime.current=Date.now();clientRef.current.publish({destination:`/pub/cursor/room/${roomId}`,body:JSON.stringify({x,y})});},[roomId]);
+  return { messages, sendMessage, state, error, retry, sendCursor };
 }
