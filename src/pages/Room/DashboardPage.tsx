@@ -1,83 +1,35 @@
-import { useMemo, useState } from 'react';
-import Button from '@mui/material/Button';
-import { Plus } from 'lucide-react';
-
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Box, Button, Card, CardContent, Chip, Container, Stack, TextField, Typography } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import { Plus, RefreshCw } from 'lucide-react';
 import type { Room } from '@/features/room/types';
 import { useAuthStore } from '@/features/auth/store/authStore';
+import { fetchRooms } from '@/features/dashboard/api';
+import { joinRoom } from '@/features/room/api';
 import CreateRoomDialog from '@/features/dashboard/components/CreateRoomDialog';
-import RoomCard from '@/features/dashboard/components/RoomCard';
-import WorkspaceSelect from '@/features/dashboard/components/WorkspaceSelect';
-import type { Workspace } from '@/features/dashboard/api';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/shared/ui/shadcn/dropdown-menu';
-
-const sampleRooms: Room[] = [
-  { id: '1', title: '디자인 싱크', description: '주간 정렬', inviteCode: 'MX-742' },
-  { id: '2', title: '스터디 룸', description: '알고리즘 연습', inviteCode: 'VR-229' },
-  { id: '3', title: '데모 리뷰', description: '출시 준비', inviteCode: 'GD-518' },
-];
-
-const sampleWorkspaces: Workspace[] = [
-  { id: 'alpha', name: '알파 팀' },
-  { id: 'beta', name: '베타 팀' },
-];
-
+import { apiErrorMessage } from '@/shared/api/error';
 export default function DashboardPage() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [workspaceId, setWorkspaceId] = useState<string | undefined>('alpha');
-  const logout = useAuthStore((state) => state.logout);
-
-  const rooms = useMemo(() => sampleRooms, []);
-
-  return (
-    <div className='min-h-screen bg-gradient-to-br from-white via-slate-50 to-slate-100 text-[color:var(--foreground)]'>
-      <div className='mx-auto max-w-6xl px-6 py-10'>
-        <div className='flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between'>
-          <div>
-            <p className='text-xs uppercase tracking-[0.4em] text-[color:var(--muted-foreground)]'>대시보드</p>
-            <h1 className='text-3xl font-semibold'>내 회의실</h1>
-          </div>
-          <div className='flex items-center gap-3'>
-            <WorkspaceSelect workspaces={sampleWorkspaces} value={workspaceId} onChange={setWorkspaceId} />
-            <Button variant='contained' startIcon={<Plus size={16} />} onClick={() => setIsDialogOpen(true)}>
-              새 회의실
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger className='rounded-full border border-[color:var(--border)] px-4 py-2 text-sm'>
-                계정
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuLabel>프로필</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>설정</DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    logout().catch((e) => {
-                      console.log(e);
-                    });
-                  }}
-                >
-                  로그아웃
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-
-        <div className='mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3'>
-          {rooms.map((room) => (
-            <RoomCard key={room.id} room={room} onJoin={() => {}} />
-          ))}
-        </div>
-      </div>
-
-      <CreateRoomDialog open={isDialogOpen} onClose={() => setIsDialogOpen(false)} />
-    </div>
-  );
+  const navigate=useNavigate(),user=useAuthStore(s=>s.user),logout=useAuthStore(s=>s.logout);
+  const [rooms,setRooms]=useState<Room[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
+  const [open,setOpen]=useState(false),[roomId,setRoomId]=useState(''),[joining,setJoining]=useState(false);
+  const [revision,setRevision]=useState(0);
+  useEffect(()=>{let active=true;setLoading(true);setError('');void fetchRooms().then(v=>{if(active)setRooms(v);}).catch(e=>{if(active)setError(apiErrorMessage(e));}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[user?.id,revision]);
+  const join=useCallback(async()=>{setJoining(true);setError('');try{await joinRoom(roomId);navigate(`/room/${roomId}`);}catch(e){setError(apiErrorMessage(e));}finally{setJoining(false);}},[roomId,navigate]);
+  return <Box sx={{ minHeight:'100dvh',bgcolor:'#f6f8f5',py:{xs:3,md:6}}}><Container maxWidth="lg">
+    <Stack direction={{xs:'column',sm:'row'}} justifyContent="space-between" gap={2} mb={4}>
+      <Box><Typography color="primary" fontWeight={700}>MingleRoom</Typography><Typography variant="h4" fontWeight={700}>내 회의실</Typography><Typography color="text.secondary">{user?.username}님, 함께할 이야기를 시작하세요.</Typography></Box>
+      <Stack direction="row" spacing={1} alignItems="center"><Button startIcon={<RefreshCw size={16}/>} onClick={()=>setRevision(v=>v+1)}>새로고침</Button><Button variant="contained" startIcon={<Plus size={17}/>} onClick={()=>setOpen(true)}>새 회의실</Button><Button onClick={()=>void logout().catch(e=>setError(apiErrorMessage(e)))}>로그아웃</Button></Stack>
+    </Stack>
+    <Stack component="form" direction={{xs:'column',sm:'row'}} gap={1} mb={3} onSubmit={e=>{e.preventDefault();void join();}}>
+      <TextField label="입장할 회의실 번호" value={roomId} onChange={e=>setRoomId(e.target.value)} size="small" slotProps={{htmlInput:{inputMode:'numeric'}}}/>
+      <Button type="submit" variant="outlined" disabled={joining||!roomId.trim()}>{joining?'입장 중…':'번호로 입장'}</Button>
+    </Stack>
+    {error&&<Alert severity="error" sx={{mb:2}}>{error}</Alert>}
+    {loading?<Typography>회의실을 불러오는 중…</Typography>:!rooms.length&&!error?<Alert severity="info">참여 중인 회의실이 없습니다. 새 회의실을 만들거나 번호로 입장하세요.</Alert>:null}
+    <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'repeat(2,1fr)',md:'repeat(3,1fr)'},gap:2}}>{rooms.map(room=><Card key={room.id} variant="outlined" sx={{borderRadius:3}}><CardContent>
+      <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">ROOM {room.id}</Typography><Chip size="small" label={room.visibility}/></Stack>
+      <Typography variant="h6" my={2}>{room.title}</Typography><Button variant="outlined" onClick={()=>navigate(`/room/${room.id}`)}>회의실 열기</Button>
+    </CardContent></Card>)}</Box>
+    <CreateRoomDialog open={open} onClose={()=>setOpen(false)} onCreated={room=>{setOpen(false);navigate(`/room/${room.id}`);}}/>
+  </Container></Box>;
 }

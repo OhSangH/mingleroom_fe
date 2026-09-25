@@ -1,37 +1,13 @@
-type Participant = {
-  id: string;
-  name: string;
-  role: string;
-};
-
-const sampleParticipants: Participant[] = [
-  { id: '1', name: '김하늘', role: '호스트' },
-  { id: '2', name: '박서준', role: '참여자' },
-  { id: '3', name: '이수민', role: '참여자' },
-];
-
-export default function ParticipantsPanel() {
-  return (
-    <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)] p-4">
-      <h3 className="text-lg font-semibold text-[color:var(--foreground)]">참여자</h3>
-      <div className="mt-4 space-y-3">
-        {sampleParticipants.map((participant) => (
-          <div
-            key={participant.id}
-            className="flex items-center justify-between rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] px-3 py-2"
-          >
-            <div>
-              <p className="text-sm text-[color:var(--foreground)]">{participant.name}</p>
-              <p className="text-xs uppercase tracking-[0.3em] text-[color:var(--muted-foreground)]">
-                {participant.role}
-              </p>
-            </div>
-            <span className="rounded-full bg-[color:var(--accent)] px-2 py-1 text-xs text-[color:var(--accent-foreground)]">
-              접속 중
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+import { Avatar, Chip, Paper, Stack, Typography } from '@mui/material';
+import type { Participant } from '@/features/room/api';
+export default function ParticipantsPanel({ participants, currentUserId }: { participants: Participant[]; currentUserId: string }) {
+  return <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
+    <Typography variant="h6" mb={1}>방 멤버 · {participants.length}</Typography>
+    <Typography variant="caption" color="text.secondary">등록된 멤버입니다. 실제 온라인 접속 여부는 아직 제공하지 않습니다.</Typography>
+    <Stack spacing={2} mt={2}>{participants.map(p => <Stack direction="row" spacing={1.5} alignItems="center" key={p.id}>
+      <Avatar sx={{ bgcolor: '#dceadf', color: '#315d42', width: 32, height: 32 }}>{p.name[0]}</Avatar>
+      <Typography variant="body2" sx={{ flex: 1 }}>{p.name}{p.id === currentUserId ? ' (나)' : ''}</Typography>
+      <Chip size="small" label={{HOST:'호스트',PRESENTER:'발표자',MEMBER:'참가자'}[p.role]}/>
+    </Stack>)}</Stack>
+  </Paper>;
 }

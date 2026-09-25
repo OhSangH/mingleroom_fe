@@ -1,52 +1,48 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Client } from '@stomp/stompjs';
-
-import { connect, createClient, disconnect } from '@/features/room/ws/stomp';
-
-export type ChatMessage = {
-  id: string;
-  sender: string;
-  content: string;
-  createdAt: string;
-};
-
+import { useAuthStore } from '@/features/auth/store/authStore';
+import { refreshToken } from '@/features/auth/api/api';
+import { connect, createClient, disconnect, type ChatConnectionState } from './stomp';
+export type ChatMessage = { id: string; sender: string; content: string; createdAt: string };
+type ServerMessage = { roomId: number; sender: string; message: string; type: string; eventType?: string | null };
 export function useRoomChat(roomId: string) {
+  const accessToken = useAuthStore(s => s.accessToken);
+  const user = useAuthStore(s => s.user);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [state, setState] = useState<ChatConnectionState>('connecting');
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
   const clientRef = useRef<Client | null>(null);
-
-  const handleMessage = useCallback((payload: unknown) => {
-    const next = payload as ChatMessage;
-    setMessages((prev) => [...prev, next]);
-  }, []);
-
-  const open = useCallback(async () => {
-    // TODO(9): STOMP 클라이언트 연결 및 구독 설정.
-    // - 이유: 채팅 패널에 서버의 실시간 메시지가 필요함.
-    // - 단계: 클라이언트 생성, 연결, 구독, 페이로드 반영.
-    // - 완료 조건: 서버 수신 메시지가 목록에 표시됨.
-    const client = createClient({ roomId, onMessage: handleMessage });
-    await connect(client);
+  useEffect(() => { setMessages([]); }, [roomId]);
+  useEffect(() => {
+    if (!accessToken) { setState('error'); setError('로그인이 필요합니다.'); return; }
+    let active = true;
+    setState('connecting'); setError('');
+    const client = createClient({ roomId, accessToken,
+      onState: (next, reason) => { if (active) { setState(next); if (reason) setError(reason); } },
+      onMessage: payload => {
+        const dto = payload as Partial<ServerMessage> | null;
+        if (!dto || String(dto.roomId) !== roomId || typeof dto.sender !== 'string' || typeof dto.message !== 'string') return;
+        if (active) setMessages(prev => [...prev.slice(-199), {
+          id: crypto.randomUUID(), sender: dto.sender!, content: dto.message!, createdAt: new Date().toISOString(),
+        }]);
+      },
+    });
     clientRef.current = client;
-  }, [handleMessage, roomId]);
-
-  const close = useCallback(async () => {
-    if (!clientRef.current) return;
-    await disconnect(clientRef.current);
-    clientRef.current = null;
+    void connect(client).catch(e => { if (active) { setState('error'); setError(e.message); } });
+    return () => { active = false; if (clientRef.current === client) clientRef.current = null; void disconnect(client); };
+  }, [roomId, accessToken, attempt]);
+  const sendMessage = useCallback(async (content: string) => {
+    const text = content.trim();
+    if (!text || text.length > 2000) throw new Error('메시지는 1~2000자여야 합니다.');
+    if (!clientRef.current?.connected || state !== 'connected') throw new Error('채팅에 연결된 뒤 전송하세요.');
+    clientRef.current.publish({ destination: `/pub/chat/room/${roomId}`, body: JSON.stringify({
+      roomId: Number(roomId), sender: user?.username ?? '', message: text, type: 'TEXT', eventType: null,
+    }) });
+  }, [roomId, user?.username, state]);
+  const retry = useCallback(async () => {
+    try { setError(''); const previous=useAuthStore.getState().accessToken; await refreshToken(); if (useAuthStore.getState().accessToken === previous) setAttempt(n => n + 1); }
+    catch { setState('error'); setError('로그인이 만료됐습니다. 다시 로그인해 주세요.'); }
   }, []);
-
-  const sendMessage = useCallback(async (_content: string) => {
-    // TODO(9): STOMP 토픽으로 채팅 메시지 발행.
-    // - 이유: 발신 메시지가 다른 멤버에게 브로드캐스트되어야 함.
-    // - 단계: 페이로드 직렬화 후 /pub 채팅 목적지로 발행.
-    // - 완료 조건: 보낸 메시지가 목록에 에코되어 표시됨.
-    throw new Error('TODO');
-  }, []);
-
-  return {
-    messages,
-    open,
-    close,
-    sendMessage,
-  };
+  return { messages, sendMessage, state, error, retry };
 }
