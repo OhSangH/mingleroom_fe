@@ -1,70 +1,14 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import TextField from '@mui/material/TextField';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-
+import { useState } from 'react';
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography } from '@mui/material';
 import { createRoom } from '@/features/dashboard/api';
-
-const schema = z.object({
-  title: z.string().min(2),
-  description: z.string().optional(),
-});
-
-type FormValues = z.infer<typeof schema>;
-
-type CreateRoomDialogProps = {
-  open: boolean;
-  onClose: () => void;
-};
-
-export default function CreateRoomDialog({ open, onClose }: CreateRoomDialogProps) {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    reset,
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-  });
-
-  const onSubmit = async (values: FormValues) => {
-    await createRoom(values);
-    reset();
-    onClose();
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>회의실 만들기</DialogTitle>
-      <DialogContent className="space-y-4 pt-4">
-        <TextField
-          label="회의실 이름"
-          fullWidth
-          {...register('title')}
-          error={Boolean(errors.title)}
-          helperText={errors.title?.message}
-        />
-        <TextField
-          label="설명"
-          fullWidth
-          {...register('description')}
-          error={Boolean(errors.description)}
-          helperText={errors.description?.message}
-        />
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={isSubmitting}>
-          취소
-        </Button>
-        <Button variant="contained" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
-          {isSubmitting ? '생성 중...' : '생성'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
+import { apiErrorMessage } from '@/shared/api/error';
+import type { Room } from '@/features/room/types';
+export default function CreateRoomDialog({ open, onClose, onCreated }: {open:boolean;onClose:()=>void;onCreated:(room:Room)=>void}) {
+  const [title,setTitle]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const create=async()=>{setBusy(true);setError('');try{const room=await createRoom({title});setTitle('');onCreated(room);}catch(e){setError(apiErrorMessage(e));}finally{setBusy(false);}};
+  return <Dialog open={open} onClose={busy?undefined:onClose} fullWidth maxWidth="xs"><DialogTitle>새 회의실</DialogTitle><DialogContent>
+    <Typography variant="body2" color="text.secondary" mb={2}>공개 · 링크 입장 방식으로 생성됩니다. 비공개·팀 초대 정책은 별도 구현이 필요합니다.</Typography>
+    <TextField autoFocus label="회의실 이름" fullWidth value={title} onChange={e=>setTitle(e.target.value)} slotProps={{htmlInput:{maxLength:150}}}/>
+    {error&&<Alert severity="error" sx={{mt:2}}>{error}</Alert>}
+  </DialogContent><DialogActions><Button disabled={busy} onClick={onClose}>취소</Button><Button variant="contained" disabled={busy||!title.trim()} onClick={()=>void create()}>{busy?'생성 중…':'생성하고 입장'}</Button></DialogActions></Dialog>;
 }

@@ -5,20 +5,14 @@ import { useAuthStore } from '../store/authStore';
 import { mapUser } from '@/features/user/api/api';
 import type { AuthResponse, AuthResponseDto, LoginPayload, SignupPayload } from '../types';
 import { z } from 'zod';
+import { apiErrorMessage } from '@/shared/api/error';
 import { endpoints } from '@/shared/api/endpoints';
 
 function extractAccessToken(dto: AuthResponseDto): string | null {
   return dto.accessToken ?? dto.token ?? dto.data?.accessToken ?? dto.data?.token ?? null;
 }
 
-function toErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (!(error instanceof AxiosError)) return '요청 중 알 수 없는 오류가 발생했습니다.';
-  const status = error.response?.status;
-  const data = error.response?.data as { message?: string; error?: string } | undefined;
-
-  return data?.message ?? data?.error ?? `요청 실패 (HTTP ${status ?? '?'})`;
-}
+const toErrorMessage = apiErrorMessage;
 
 export async function loginApi(payload: LoginPayload): Promise<AuthResponse> {
   // DONE(3): 로그인 API 호출 구현.
@@ -38,6 +32,8 @@ export async function loginApi(payload: LoginPayload): Promise<AuthResponse> {
     useAuthStore.getState().setUser(user);
     return { user, accessToken };
   } catch (e) {
+    localStorage.removeItem('hasSession');
+    useAuthStore.getState().clearAuth();
     throw new Error(toErrorMessage(e));
   }
 }

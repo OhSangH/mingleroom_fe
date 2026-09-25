@@ -1,0 +1,37 @@
+{
+  "backend": "mock REST and SockJS/STOMP",
+  "results": [
+    {
+      "width": 1440,
+      "passed": true,
+      "checks": [
+        "login",
+        "join",
+        "JWT CONNECT",
+        "subscribe",
+        "publish echo",
+        "leave",
+        "create",
+        "refresh",
+        "no overflow",
+        "no page errors"
+      ]
+    },
+    {
+      "width": 390,
+      "passed": true,
+      "checks": [
+        "login",
+        "join",
+        "JWT CONNECT",
+        "subscribe",
+        "publish echo",
+        "leave",
+        "create",
+        "refresh",
+        "no overflow",
+        "no page errors"
+      ]
+    }
+  ]
+}

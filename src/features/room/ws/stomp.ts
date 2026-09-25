@@ -1,30 +1,44 @@
-import type { Client } from '@stomp/stompjs';
-
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
+import { env } from '@/shared/lib/env';
+import { validateRoomId } from '@/features/room/api';
+export type ChatConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error';
 export type StompConfig = {
-  roomId: string;
+  roomId: string; accessToken: string;
   onMessage: (payload: unknown) => void;
+  onState: (state: ChatConnectionState, error?: string) => void;
 };
-
-export function createClient(_config: StompConfig): Client {
-  // TODO(8): STOMP 클라이언트 인스턴스 생성 및 설정.
-  // - 이유: 채팅에는 룸별 실시간 소켓 연결이 필요함.
-  // - 단계: 브로커 URL, 재연결 전략, 핸들러 설정.
-  // - 완료 조건: 클라이언트 연결 후 onConnect 콜백 로그가 찍힘.
-  throw new Error('TODO');
+export function createClient(config: StompConfig): Client {
+  validateRoomId(config.roomId);
+  const client = new Client({
+    webSocketFactory: () => new SockJS(`${env.apiBaseUrl}/ws-stomp`),
+    connectHeaders: { Authorization: `Bearer ${config.accessToken}` },
+    reconnectDelay: 0, connectionTimeout: 10000,
+    heartbeatIncoming: 10000, heartbeatOutgoing: 10000,
+    onConnect: () => {
+      client.subscribe(`/sub/chat/room/${config.roomId}`, frame => {
+        try { config.onMessage(JSON.parse(frame.body)); }
+        catch { config.onState('error', '채팅 응답 형식을 확인하세요.'); }
+      });
+      config.onState('connected');
+    },
+    onStompError: () => config.onState('error', '채팅 인증 또는 방 참여 권한을 확인하세요. 다시 연결하려면 재시도를 눌러 주세요.'),
+    onWebSocketError: () => config.onState('error', '채팅 서버에 연결하지 못했습니다.'),
+    onWebSocketClose: () => config.onState('disconnected', '채팅 연결이 종료됐습니다.'),
+  });
+  return client;
 }
 
-export async function connect(_client: Client) {
-  // TODO(8): 룸 토픽에 연결 및 구독.
-  // - 이유: 채팅과 이벤트가 서버에서 스트리밍되어야 함.
-  // - 단계: 클라이언트 활성화, 토픽 구독, 메시지 파싱.
-  // - 완료 조건: 수신 페이로드로 메시지 목록이 업데이트됨.
-  throw new Error('TODO');
+export async function connect(client: Client): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const connected = client.onConnect, failed = client.onStompError, closed = client.onWebSocketClose;
+    let settled = false;
+    const timer = setTimeout(() => { if (!settled) { settled = true; reject(new Error('채팅 연결 시간이 초과됐습니다.')); void client.deactivate(); } }, 12000);
+    const fail = (message: string) => { if (!settled) { settled = true; clearTimeout(timer); reject(new Error(message)); } };
+    client.onConnect = frame => { connected(frame); if (!settled) { settled = true; clearTimeout(timer); resolve(); } };
+    client.onStompError = frame => { failed(frame); fail('채팅 인증 또는 구독 요청이 거부됐습니다.'); void client.deactivate(); };
+    client.onWebSocketClose = event => { closed(event); fail('채팅 서버 연결이 종료됐습니다.'); };
+    client.activate();
+  });
 }
-
-export async function disconnect(_client: Client) {
-  // TODO(8): STOMP 서버에서 정상적으로 연결 해제.
-  // - 이유: 잔여 구독과 메모리 누수를 방지하기 위함.
-  // - 단계: 구독 해제, 클라이언트 비활성화, 로컬 상태 초기화.
-  // - 완료 조건: 클라이언트가 비활성화 상태를 보고함.
-  throw new Error('TODO');
-}
+export async function disconnect(client: Client) { await client.deactivate(); }

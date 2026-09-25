@@ -5,9 +5,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { loginApi } from '@/features/auth/api/api';
-import { useEffect } from 'react';
-import { useAuthStore } from '../store/authStore';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import Alert from '@mui/material/Alert';
 
 const schema = z.object({
   email: z.email('이메일 형식이 올바르지 않습니다.'),
@@ -17,7 +16,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function LoginForm() {
-  const navigate = useNavigate();
+  const [submitError, setSubmitError] = useState('');
 
   const {
     register,
@@ -28,17 +27,14 @@ export default function LoginForm() {
   });
 
   const onSubmit = async (values: FormValues) => {
-    await loginApi(values);
+    setSubmitError('');
+    try { await loginApi(values); }
+    catch (error) { setSubmitError(error instanceof Error ? error.message : '로그인하지 못했습니다.'); }
   };
-
-  useEffect(() => {
-    if (useAuthStore.getState().accessToken) {
-      navigate('/dashboard', { replace: true });
-    }
-  });
 
   return (
     <form className='space-y-5' onSubmit={handleSubmit(onSubmit)}>
+      {submitError && <Alert severity='error'>{submitError}</Alert>}
       <TextField
         label='이메일'
         type='email'

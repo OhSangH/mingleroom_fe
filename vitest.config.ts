@@ -1,8 +1,3 @@
 import { defineConfig } from 'vitest/config';
-
-export default defineConfig({
-  test: {
-    environment: 'jsdom',
-    setupFiles: [],
-  },
-});
+import { fileURLToPath, URL } from 'node:url';
+export default defineConfig({resolve:{alias:{'@':fileURLToPath(new URL('./src',import.meta.url))}},test:{include:['tests/*.test.ts']}});
