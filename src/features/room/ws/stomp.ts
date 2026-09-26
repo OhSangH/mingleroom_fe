@@ -4,7 +4,8 @@ import { env } from '@/shared/lib/env';
 import { validateRoomId } from '@/features/room/api';
 export type ChatConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error';
 export type StompConfig = {
-  roomId: string; accessToken: string;
+  roomId: string; accessToken: string; userId?: string;
+  onSignal?: (payload:unknown)=>void;
   onMessage: (payload: unknown) => void;
   onBoard?: (payload: unknown) => void;
   onCursor?: (payload: unknown) => void;
@@ -24,6 +25,10 @@ export function createClient(config: StompConfig): Client {
       });
       if (config.onBoard) client.subscribe(`/sub/board/room/${config.roomId}`, f => { try { config.onBoard?.(JSON.parse(f.body)); } catch { /* Next REST refresh recovers. */ } });
       if (config.onCursor) client.subscribe(`/sub/cursor/room/${config.roomId}`, f => { try { config.onCursor?.(JSON.parse(f.body)); } catch { /* Ephemeral cursor. */ } });
+      if(config.onSignal){
+        client.subscribe(`/sub/signal/room/${config.roomId}`,f=>{try{config.onSignal?.(JSON.parse(f.body));}catch{/* Ignore malformed ephemeral signal. */}});
+        if(config.userId)client.subscribe(`/sub/signal/room/${config.roomId}/user/${config.userId}`,f=>{try{config.onSignal?.(JSON.parse(f.body));}catch{/* Ignore malformed ephemeral signal. */}});
+      }
       config.onState('connected');
     },
     onStompError: () => config.onState('error', '채팅 인증 또는 방 참여 권한을 확인하세요. 다시 연결하려면 재시도를 눌러 주세요.'),

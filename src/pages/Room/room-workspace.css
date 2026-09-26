@@ -5,3 +5,6 @@
 @media(max-width:760px){.mr-canvas-heading{left:16px;right:auto;width:400px;text-align:left}.mr-canvas-heading h2{font-size:23px}.mr-canvas-heading p{font-size:13px;max-width:370px}.mr-empty-board{left:10px;right:auto;width:390px;top:220px}.mr-empty-board h3{font-size:20px}.mr-empty-board p{font-size:14px}}
 
 .mr-message-self p{background:#e7efdf}.mr-message-self .mr-avatar{background:#d4e2c7}.mr-load-history.MuiButton-root{margin:0 0 14px;min-height:32px;font-size:12px}.mr-message time{white-space:nowrap}.mr-message header{flex-wrap:wrap}
+
+.mr-room-actions .MuiButton-contained{background:#315e4c;color:#fff}.mr-room-actions .MuiButton-contained:hover{background:#254b3c}
+@media(max-width:760px){.mr-room-header{flex-wrap:wrap;gap:8px}.mr-room-header>div:first-child{min-width:0;flex:1 1 170px}.mr-room-actions{flex-wrap:wrap;gap:6px}.mr-session-bar{flex-wrap:wrap;padding-top:7px;padding-bottom:7px;gap:5px}.mr-session-bar>span{gap:5px}.mr-session-bar .MuiButton-root{min-width:0;font-size:11px;padding:4px 6px}.mr-session-footer{flex-wrap:wrap;height:auto;min-height:54px;padding-top:6px;padding-bottom:6px}}
