@@ -1,3 +1,5 @@
+> 최신 구현/권한/API/남은 범위: [MVP 기능 추가 v1](./MVP_기능추가_v1.md). DB 적용: [erd_patch_v1](./erd_patch_v1/README.md). 아래는 기존 계획/기록입니다.
+
 ## api 명세서 백엔드 작성하기
 
 - workspace member 관련 api 작성

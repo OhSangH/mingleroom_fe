@@ -6,7 +6,7 @@ import { connect, createClient, disconnect, type ChatConnectionState } from './s
 import { useChatHistory } from '../chat/useChatHistory';
 import { parseChatMessage } from '../chat/history';
 export type { ChatMessage } from '../chat/history';
-export function useRoomChat(roomId: string, boardEvents?: {onBoard:(data:unknown)=>void;onCursor:(data:unknown)=>void;onConnected:()=>void}) {
+export function useRoomChat(roomId: string, boardEvents?: {onBoard:(data:unknown)=>void;onCursor:(data:unknown)=>void;onConnected:()=>void;onSignal?:(data:unknown)=>void}) {
   const events=useRef(boardEvents);events.current=boardEvents;
   const cursorTime=useRef(0);
   const accessToken = useAuthStore(s => s.accessToken);
@@ -23,7 +23,8 @@ export function useRoomChat(roomId: string, boardEvents?: {onBoard:(data:unknown
     if (!accessToken) { setState('error'); setError('로그인이 필요합니다.'); return; }
     let active = true;
     setState('connecting'); setError('');
-    const client = createClient({ roomId, accessToken,
+    const client = createClient({ roomId, accessToken, userId:String(user?.id),
+      onSignal: payload=>{if(active)events.current?.onSignal?.(payload);},
       onBoard: payload => { if(active) events.current?.onBoard(payload); },
       onCursor: payload => { if(active) events.current?.onCursor(payload); },
       onState: (next, reason) => { if (active) { setState(next); if (reason) setError(reason); if(next==='connected'){setError('');events.current?.onConnected();void historyRef.current.refreshHistory();} } },
@@ -58,5 +59,6 @@ export function useRoomChat(roomId: string, boardEvents?: {onBoard:(data:unknown
     catch { setState('error'); setError('로그인이 만료됐습니다. 다시 로그인해 주세요.'); }
   }, []);
   const sendCursor=useCallback((x:number,y:number)=>{if(!clientRef.current?.connected||Date.now()-cursorTime.current<120)return;cursorTime.current=Date.now();clientRef.current.publish({destination:`/pub/cursor/room/${roomId}`,body:JSON.stringify({x,y})});},[roomId]);
-  return { ...history, sendMessage, state, error, retry, sendCursor, sending };
+  const sendSignal=useCallback((signal:import('../voice/useVoice').VoiceSignal)=>{if(!clientRef.current?.connected)return false;try{clientRef.current.publish({destination:`/pub/signal/room/${roomId}`,body:JSON.stringify(signal)});return true;}catch{return false;}},[roomId]);
+  return { ...history, sendMessage, state, error, retry, sendCursor, sending, sendSignal };
 }

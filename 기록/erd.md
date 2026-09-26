@@ -120,6 +120,13 @@ boolean is_banned
         datetime created_at
         datetime updated_at
         datetime done_at
+        int revision "MVP v1, default 1, >=1"
+    }
+
+    ROOM_BANS {
+        bigint room_id PK, FK
+        bigint user_id PK, FK
+        datetime created_at
     }
 
     BOOKMARKS {
@@ -235,6 +242,8 @@ boolean is_banned
     ROOMS ||--o{ ROOM_EVENTS : emits
     USERS ||--o{ ROOM_EVENTS : acts
 
+    ROOMS ||--o{ ROOM_BANS : blocks
+    USERS ||--o{ ROOM_BANS : banned_account
     ROOMS ||--|| NOTES : notes
     USERS ||--o{ NOTES : updates_by
 
@@ -992,6 +1001,20 @@ DO $$ BEGIN
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- MVP v1: 할 일 동시 수정 검증
+ALTER TABLE action_items ADD COLUMN IF NOT EXISTS revision INTEGER NOT NULL DEFAULT 1;
+DO $$ BEGIN
+  ALTER TABLE action_items ADD CONSTRAINT ck_action_items_revision CHECK (revision >= 1);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- MVP v1: 내보낸 참가자 재입장 차단
+CREATE TABLE IF NOT EXISTS room_bans (
+  room_id BIGINT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (room_id,user_id)
+);
+
 -- BOOKMARKS
 CREATE TABLE IF NOT EXISTS bookmarks (
   id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -1239,3 +1262,27 @@ VALUES (
 ```
 
 
+
+
+## MVP 추가 변경 v1
+
+기존 DB 적용 SQL: [erd_patch_v1](./erd_patch_v1/README.md).
+
+```mermaid
+erDiagram
+  ROOMS ||--o{ ROOM_BANS : blocks
+  USERS ||--o{ ROOM_BANS : account
+  ROOMS ||--o{ ACTION_ITEMS : tasks
+  ROOM_BANS {
+    bigint room_id PK,FK
+    bigint user_id PK,FK
+    timestamptz created_at
+  }
+  ACTION_ITEMS {
+    bigint id PK
+    bigint room_id FK
+    integer revision "NOT NULL DEFAULT 1, >=1"
+  }
+```
+
+기존 ACTION_ITEMS 컬럼은 유지하며 revision만 추가합니다. 기존 NOTES.version은 공동 회의록 충돌 검사에 사용합니다.

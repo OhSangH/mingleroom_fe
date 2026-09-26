@@ -1,0 +1,11 @@
+import { useRef, useState, useEffect } from 'react';
+import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material';
+import { apiClient } from '@/shared/api/axios';
+import { apiErrorMessage } from '@/shared/api/error';
+import { parseChatMessage, type ChatMessage } from '../chat/history';
+export default function ChatSearch({roomId}:{roomId:string}){
+ const [query,setQuery]=useState(''),[term,setTerm]=useState(''),[rows,setRows]=useState<ChatMessage[]>([]),[next,setNext]=useState<string|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const generation=useRef(0);useEffect(()=>()=>{generation.current++;},[roomId]);
+ const search=async(more=false)=>{const q=more?term:query.trim();if(!q)return;const g=++generation.current;setBusy(true);setError('');if(!more){setRows([]);setNext(null);setTerm(q);}try{const {data}=await apiClient.get(`/room/${roomId}/messages/search`,{params:{q,before:more?next:undefined}});if(g!==generation.current)return;const parsed=(data.items as unknown[]).map(v=>parseChatMessage(v,roomId)).filter((v):v is ChatMessage=>!!v);setRows(old=>more?[...old,...parsed.filter(p=>!old.some(o=>o.id===p.id))]:parsed);setNext(data.hasMore?data.nextCursor:null);}catch(e){if(g===generation.current)setError(apiErrorMessage(e));}finally{if(g===generation.current)setBusy(false);}};
+ return <Stack spacing={2}><Box component="form" onSubmit={e=>{e.preventDefault();void search();}}><Stack direction="row" spacing={1}><TextField fullWidth label="대화 검색어" value={query} inputProps={{maxLength:200}} onChange={e=>setQuery(e.target.value)}/><Button type="submit" disabled={busy||!query.trim()}>검색</Button></Stack></Box><Typography variant="body2" color="text.secondary">저장된 대화 전체에서 검색합니다. 최신 결과부터 50개씩 표시합니다.</Typography>{error&&<Alert severity="error">{error}</Alert>}{term&&!busy&&!rows.length&&!error&&<Typography>검색 결과가 없어요.</Typography>}{rows.map(m=><Box key={m.id} sx={{p:2,borderBottom:'1px solid',borderColor:'divider'}}><Typography variant="caption">{m.sender} · {new Date(m.createdAt).toLocaleString()}</Typography><Typography sx={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{m.content}</Typography></Box>)}{next&&<Button disabled={busy} onClick={()=>void search(true)}>검색 결과 더 보기</Button>}</Stack>;
+}

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 
 import { useAuth } from '@/features/auth/hooks/hooks';
 import LoadingScreen from '@/shared/ui/LoadingScreen';
@@ -10,6 +10,7 @@ type RouteGuardProps = {
 };
 
 export function ProtectedRoute({ children, redirectTo = '/login' }: RouteGuardProps) {
+  const location=useLocation();
   const { isAuthenticated, isLoading, hasBootstrapped } = useAuth();
   if (!hasBootstrapped || isLoading) {
     return <LoadingScreen label='세션을 확인 중이에요...' />;
@@ -19,12 +20,15 @@ export function ProtectedRoute({ children, redirectTo = '/login' }: RouteGuardPr
   // - 이유: 인증되지 않은 사용자의 보호 페이지 접근을 막기 위함.
   // - 단계: 저장된 토큰 확인, 사용자 세션 검증, 만료 처리.
   // - 완료 조건: 비인증 사용자가 항상 /login으로 리다이렉트됨.
-  if (!isAuthenticated) return <Navigate to={redirectTo} replace />;
+  if (!isAuthenticated) return <Navigate to={redirectTo} state={{from:location.pathname+location.search}} replace />;
 
   return <>{children}</>;
 }
 
 export function PublicOnlyRoute({ children, redirectTo = '/dashboard' }: RouteGuardProps) {
+  const location=useLocation();
+  const from=location.state?.from;
+  const destination=typeof from==='string'&&/^\/(?:lobby|room)\/[1-9]\d*(?:\?.*)?$/.test(from)?from:redirectTo;
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
@@ -38,7 +42,7 @@ export function PublicOnlyRoute({ children, redirectTo = '/dashboard' }: RouteGu
   // const shouldRedirect = false;
 
   // return shouldRedirect || isAuthenticated ? <Navigate to={redirectTo} replace /> : <>{children}</>;
-  if (isAuthenticated) return <Navigate to={redirectTo} replace />;
+  if (isAuthenticated) return <Navigate to={destination} replace />;
 
   return <>{children}</>;
 }
