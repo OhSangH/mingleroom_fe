@@ -1,0 +1,11 @@
+import {it,expect,vi,beforeEach} from 'vitest';
+const api=vi.hoisted(()=>({get:vi.fn()}));vi.mock('@/shared/api/axios',()=>({apiClient:api}));
+import {parseChatMessage,mergeMessages,fetchHistory} from '../src/features/room/chat/history';
+const dto=(id:string)=>({id,roomId:7,sender:'상현',senderId:'1',message:'안녕하세요',type:'TEXT',createdAt:'2026-09-26T12:00:00Z'});
+beforeEach(()=>vi.resetAllMocks());
+it('merges realtime and history without duplicate messages',()=>{const m=parseChatMessage(dto('42'),'7')!;expect(mergeMessages([m],[m,m])).toHaveLength(1);});
+it('sorts BIGINT identifiers without rounding',()=>{const a=parseChatMessage(dto('9007199254740993'),'7')!,b=parseChatMessage(dto('9007199254740992'),'7')!;expect(mergeMessages([a],[b]).map(x=>x.id)).toEqual(['9007199254740992','9007199254740993']);});
+it('rejects wrong-room or malformed records',()=>{expect(parseChatMessage(dto('1'),'8')).toBeNull();expect(parseChatMessage({...dto('1'),createdAt:'invalid'},'7')).toBeNull();expect(parseChatMessage({...dto('1'),id:1},'7')).toBeNull();});
+it('uses the paginated room endpoint',async()=>{api.get.mockResolvedValue({data:{items:[dto('9')],nextCursor:'9',hasMore:true}});const result=await fetchHistory('7',{before:'10'});expect(api.get).toHaveBeenCalledWith('/room/7/messages',{params:{before:'10',limit:50},signal:undefined});expect(result.items[0].id).toBe('9');expect(result.nextCursor).toBe('9');});
+it('does not replace server errors with sample history',async()=>{api.get.mockRejectedValue(new Error('Forbidden'));await expect(fetchHistory('7')).rejects.toThrow('Forbidden');});
+it('rejects malformed pagination instead of looping',async()=>{api.get.mockResolvedValue({data:{items:[],hasMore:true,nextCursor:null}});await expect(fetchHistory('7')).rejects.toThrow();});

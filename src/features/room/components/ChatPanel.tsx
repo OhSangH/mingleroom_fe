@@ -19,7 +19,7 @@ export default function ChatPanel({ roomId }: { roomId: string }) {
     </Stack>
     {error && <Alert severity="warning" action={<Button size="small" onClick={() => void retry()}>재시도</Button>} sx={{ mb: 1 }}>{error}</Alert>}
     <Box aria-label="채팅 내역" role="log" aria-live="polite" sx={{ height: 320, overflowY: 'auto', bgcolor: 'grey.50', borderRadius: 2, p: 1.5 }}>
-      {!messages.length && <Typography color="text.secondary" variant="body2">연결 후 수신한 메시지가 표시됩니다. 이전 채팅 기록 조회는 아직 지원하지 않습니다.</Typography>}
+      {!messages.length && <Typography color="text.secondary" variant="body2">저장된 대화를 불러옵니다. 첫 메시지를 보내보세요.</Typography>}
       {messages.map(m => <Box key={m.id} sx={{ mb: 2 }}>
         <Stack direction="row" justifyContent="space-between"><Typography fontWeight={600} variant="body2">{m.sender}</Typography><Typography variant="caption" color="text.secondary">{new Date(m.createdAt).toLocaleTimeString()}</Typography></Stack>
         <Typography sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', mt: .5 }}>{m.content}</Typography>
