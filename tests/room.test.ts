@@ -18,5 +18,10 @@ describe('actual room REST contract',()=>{
   expect(api.post).toHaveBeenNthCalledWith(1,'/room/create',{title:'검증',visibility:'PUBLIC',invitePolicy:'LINK',workspaceId:null});
   expect(api.post).toHaveBeenNthCalledWith(2,'/room/9/join/me');
  });
+ it('creates private rooms without changing the restricted invite policy',async()=>{
+  api.post.mockResolvedValue({data:{id:10,title:'비공개',visibility:'PRIVATE'}});
+  await createRoom({title:' 비공개 ',visibility:'PRIVATE'});
+  expect(api.post).toHaveBeenCalledWith('/room/create',{title:'비공개',visibility:'PRIVATE',invitePolicy:'LINK',workspaceId:null});
+ });
  it('propagates server denial without sample data',async()=>{api.get.mockRejectedValue(new Error('Forbidden'));await expect(fetchRooms()).rejects.toThrow('Forbidden');});
 });
