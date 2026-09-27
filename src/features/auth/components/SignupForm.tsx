@@ -5,7 +5,11 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { passwordSchema, signupApi } from '@/features/auth/api/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { Alert } from '@mui/material';
+import { authReturnPath } from '@/features/room/invites/entry';
+import { apiErrorMessage } from '@/shared/api/error';
 
 const schema = z.object({
   username: z.string().min(2),
@@ -16,7 +20,8 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function SignupForm() {
-  const navigate = useNavigate();
+  const navigate = useNavigate(),location=useLocation();
+  const [error,setError]=useState('');
 
   const {
     register,
@@ -27,13 +32,14 @@ export default function SignupForm() {
   });
 
   const onSubmit = async (values: FormValues) => {
-    await signupApi(values);
-
-    navigate('/login', { replace: true });
+    setError('');
+    try{await signupApi(values);const from=authReturnPath(location.state?.from);navigate('/login', { replace: true,state:from?{from}:undefined });}
+    catch(e){setError(apiErrorMessage(e));}
   };
 
   return (
     <form className='space-y-5' onSubmit={handleSubmit(onSubmit)}>
+      {error&&<Alert severity="error">{error}</Alert>}
       <TextField
         label='이름'
         fullWidth

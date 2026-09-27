@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Chip, Container, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Snackbar, Tooltip } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronRight, Copy, Headphones, LayoutGrid, Link2, LockKeyhole, MessageCircle, Mic, MicOff, PanelRightClose, ShieldCheck, StickyNote, Users, X } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Headphones, LayoutGrid, Link2, LockKeyhole, MessageCircle, Mic, MicOff, PanelRightClose, ShieldCheck, StickyNote, Users, X } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/store/authStore';
 import { fetchRoomDetail, fetchParticipants, type Participant } from '@/features/room/api';
 import type { Room } from '@/features/room/types';
@@ -14,6 +14,7 @@ import MeetingTools from '@/features/room/components/MeetingTools';
 import RoomControlsPanel from '@/features/room/components/RoomControlsPanel';
 import { useVoice } from '@/features/room/voice/useVoice';
 import { apiClient } from '@/shared/api/axios';
+import InviteDialog from '@/features/room/invites/InviteDialog';
 import './room-workspace.css';
 function Brand(){return <span className="mr-brand"><span className="mr-brand-icon"><i/><i/><i/></span>mingle<span>room</span><b>·</b></span>;}
 function Meeting({room,participants,me,onRefresh}:{room:Room;participants:Participant[];me:Participant;onRefresh:()=>void}){
@@ -24,7 +25,7 @@ function Meeting({room,participants,me,onRefresh}:{room:Room;participants:Partic
  const [tools,setTools]=useState(false),[controls,setControls]=useState(false);
  const [tab,setTab]=useState<'chat'|'people'>('chat'),[mobile,setMobile]=useState<'board'|'chat'|'people'>('board'),[focus,setFocus]=useState(false);
  const [invite,setInvite]=useState(false),[voice,setVoice]=useState(false),[toast,setToast]=useState('');
- const copy=async()=>{try{await navigator.clipboard.writeText(`${location.origin}/lobby/${room.id}`);setToast('입장 링크를 복사했어요.');}catch{setToast('아래 입장 링크를 직접 복사해 주세요.');}};
+
  const roleLabel={HOST:'호스트',PRESENTER:'발표자',MEMBER:'참가자'};
  return <div className={`mr-shell ${focus?'mr-focus':''}`}>
   <nav className="mr-rail" aria-label="회의실 메뉴"><button className="mr-rail-logo" aria-label="내 회의실로" onClick={()=>navigate('/dashboard')}>m</button><div><Tooltip title="내 회의실"><IconButton aria-label="내 회의실로 이동" onClick={()=>navigate('/dashboard')}><LayoutGrid/></IconButton></Tooltip><Tooltip title="화이트보드"><IconButton className="selected" aria-label="화이트보드 보기" onClick={()=>setMobile('board')}><StickyNote/></IconButton></Tooltip><Tooltip title="참가자"><IconButton aria-label="참가자 보기" onClick={()=>{setTab('people');setMobile('people');setFocus(false);}}><Users/></IconButton></Tooltip></div><span className="mr-avatar">{user.username.slice(0,1)}</span></nav>
@@ -35,7 +36,7 @@ function Meeting({room,participants,me,onRefresh}:{room:Room;participants:Partic
    <nav className="mr-mobile-tabs" aria-label="회의실 화면 전환">{([['board','보드',StickyNote],['chat','채팅',MessageCircle],['people','참가자',Users]] as const).map(([id,label,Icon])=><button key={id} className={mobile===id?'selected':''} onClick={()=>{setMobile(id);if(id!=='board')setTab(id);}}><Icon size={18}/>{label}</button>)}</nav>
    <footer className="mr-session-footer"><span><Headphones size={18}/><strong>{audio.active?`음성 참여 중 · 연결 ${audio.peers.filter(p=>p.state==='connected').length}명`:'음성 회의'}</strong><small>{audio.active?(audio.muted?'내 마이크 꺼짐':'내 마이크 켜짐'):'최대 4명이 함께 이야기해요'}</small></span><div>{audio.active&&<Button disabled={me.mute} startIcon={audio.muted?<MicOff size={16}/>:<Mic size={16}/>} onClick={audio.toggle}>{audio.muted?'마이크 켜기':'마이크 끄기'}</Button>}<Button onClick={()=>setVoice(true)}>{audio.active?'음성 상태':'음성 참여'}</Button><Button startIcon={<ArrowLeft size={16}/>} onClick={()=>navigate('/dashboard')}>나가기</Button></div></footer>
   </main>
-  <Dialog open={invite} onClose={()=>setInvite(false)} fullWidth maxWidth="xs"><DialogTitle>함께할 사람 초대하기</DialogTitle><DialogContent><p>회의실 번호 <strong>{room.id}</strong></p><p className="mr-invite-url">{`${location.origin}/lobby/${room.id}`}</p><Alert severity="info">{room.visibility==='PUBLIC'?'로그인한 사용자는 방의 입장 정책에 따라 참여할 수 있어요.':'링크만으로 비공개 방의 입장 권한이 생기지는 않아요.'}</Alert></DialogContent><DialogActions><Button onClick={()=>setInvite(false)}>닫기</Button><Button variant="contained" startIcon={<Copy size={16}/>} onClick={()=>void copy()}>링크 복사</Button></DialogActions></Dialog>
+  <InviteDialog open={invite} onClose={()=>setInvite(false)} room={room} role={me.role}/>
   <Dialog open={voice} onClose={()=>setVoice(false)} fullWidth maxWidth="xs"><DialogTitle>음성 회의</DialogTitle><DialogContent><Alert severity="info">마이크 권한을 허용하고 참여하세요. 같은 계정은 한 탭에서만 참여해 주세요. 네트워크 환경에 따라 STUN/TURN 설정이 필요합니다.</Alert>{audio.error&&<Alert severity="error" sx={{mt:2}}>{audio.error}<Button onClick={audio.play}>소리 재생</Button></Alert>}{me.mute&&<Alert severity="warning" sx={{mt:2}}>호스트가 마이크 음소거를 요청했습니다.</Alert>}<div className="mr-mic-test">{audio.active?<Headphones size={36}/>:<Mic size={36}/>}<p>{audio.active?'음성 회의에 참여하고 있어요':audio.busy?'마이크 권한을 확인하고 있어요':'참여 버튼을 눌러 시작하세요'}</p>{audio.peers.map(p=><p key={p.id}>{participants.find(m=>m.id===String(p.id))?.name||p.id} · {p.state==='connected'?'연결됨':p.state==='failed'?'연결 실패':'연결 중'}</p>)}</div></DialogContent><DialogActions><Button onClick={()=>setVoice(false)}>닫기</Button>{audio.active?<Button color="error" onClick={audio.stop}>음성 나가기</Button>:<Button variant="contained" disabled={audio.busy||chat.state!=='connected'} onClick={()=>void audio.start()}>음성 참여 시작</Button>}</DialogActions></Dialog>
   <MeetingTools open={tools} onClose={()=>setTools(false)} roomId={room.id} me={me} participants={participants}/>
   {me.role==='HOST'&&<RoomControlsPanel open={controls} onClose={()=>setControls(false)} roomId={room.id} participants={participants} onRefresh={onRefresh}/>}
