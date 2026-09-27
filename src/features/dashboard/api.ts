@@ -13,9 +13,9 @@ export async function fetchRooms(): Promise<Room[]> {
   const { data } = await apiClient.get<RoomDto[]>(endpoints.rooms.list);
   return data.map(mapRoom);
 }
-export async function createRoom(payload: { title: string }): Promise<Room> {
+export async function createRoom(payload: { title: string; visibility?: 'PUBLIC' | 'PRIVATE' }): Promise<Room> {
   const { data } = await apiClient.post<RoomDto>(endpoints.rooms.create, {
-    title: payload.title.trim(), visibility: 'PUBLIC', invitePolicy: 'LINK', workspaceId: null,
+    title: payload.title.trim(), visibility: payload.visibility??'PUBLIC', invitePolicy: 'LINK', workspaceId: null,
   });
   return mapRoom(data);
 }
