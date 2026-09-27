@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
 import { useAuth } from '@/features/auth/hooks/hooks';
+import { authReturnPath } from '@/features/room/invites/entry';
 import LoadingScreen from '@/shared/ui/LoadingScreen';
 
 type RouteGuardProps = {
@@ -28,7 +29,7 @@ export function ProtectedRoute({ children, redirectTo = '/login' }: RouteGuardPr
 export function PublicOnlyRoute({ children, redirectTo = '/dashboard' }: RouteGuardProps) {
   const location=useLocation();
   const from=location.state?.from;
-  const destination=typeof from==='string'&&/^\/(?:lobby|room)\/[1-9]\d*(?:\?.*)?$/.test(from)?from:redirectTo;
+  const destination=authReturnPath(from)??redirectTo;
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
